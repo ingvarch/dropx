@@ -33,8 +33,8 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         (hash_identifier(&ip), None)
     };
 
-    if let Err(_) = RateLimiterService::check_limit(&env, &user_id, tier).await {
-        return Ok(Response::error(ERR_RATE_LIMIT_EXCEEDED, HTTP_TOO_MANY_REQUESTS)?);
+    if RateLimiterService::check_limit(&env, &user_id, tier).await.is_err() {
+        return Response::error(ERR_RATE_LIMIT_EXCEEDED, HTTP_TOO_MANY_REQUESTS);
     }
 
     let body = req.bytes().await?;
