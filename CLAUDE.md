@@ -22,6 +22,23 @@
   4. Verify API signatures, module paths, and patterns in the docs before implementing
   5. Never assume API based on older versions - always verify current implementation
 
+## Mandatory Code Quality Checks
+
+**CRITICAL: After ANY code changes, ALWAYS run the following commands and fix ALL issues:**
+
+```bash
+cargo clippy && cargo check && cargo test
+```
+
+**Requirements:**
+- **100% clean output required** - no warnings, no errors, nothing
+- **All tests must pass** - zero failures, zero ignored tests
+- **Clippy warnings are NOT acceptable** - fix every single one
+- **Run these checks BEFORE committing any code**
+- **Never skip these checks** - they are mandatory for every change
+
+If any check fails or produces warnings, you MUST fix them immediately before proceeding. No exceptions.
+
 ## Rust-Specific Best Practices
 
 ### Error Handling
@@ -185,6 +202,9 @@ Example: `feat(storage): implement R2 upload with retry logic`
 
 ## Code Review Checklist
 
+- [ ] `cargo clippy` passes with zero warnings
+- [ ] `cargo check` passes with zero errors
+- [ ] `cargo test` passes with all tests succeeding
 - [ ] No `unwrap()` or `expect()` in production paths
 - [ ] All public APIs documented
 - [ ] Error types are descriptive
