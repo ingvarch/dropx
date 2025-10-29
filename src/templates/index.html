@@ -258,6 +258,60 @@
                 <div class="code-block">
                     <code>echo "Hello World" | curl -T - {{HOSTNAME}}/hello.txt</code>
                 </div>
+
+                <p><strong>Upload with custom retention (1-{{RETENTION_DAYS}} days):</strong></p>
+                <div class="code-block">
+                    <span class="comment"># File will be deleted after 1 day instead of {{RETENTION_DAYS}} days</span><br>
+                    <code>curl -T myfile.txt -H "X-Retention-Days: 1" {{HOSTNAME}}</code>
+                </div>
+
+                <p><strong>Upload with auto-generated filename:</strong></p>
+                <div class="code-block">
+                    <span class="comment"># Server generates a random filename</span><br>
+                    <code>curl -T myfile.txt {{HOSTNAME}}</code>
+                </div>
+
+                <p><strong>Upload with custom filename and extension:</strong></p>
+                <div class="code-block">
+                    <code>curl -T screenshot.png {{HOSTNAME}}/screenshot-2024-01-15.png</code><br>
+                    <code>curl -T data.json {{HOSTNAME}}/api-response.json</code><br>
+                    <code>curl -T archive.tar.gz {{HOSTNAME}}/backup.tar.gz</code>
+                </div>
+
+                <p><strong>Upload multiple files in a loop:</strong></p>
+                <div class="code-block">
+                    <span class="comment"># Bash script to upload multiple files</span><br>
+                    <code>for file in *.txt; do</code><br>
+                    <code>  curl -T "$file" {{HOSTNAME}}/"$file"</code><br>
+                    <code>done</code>
+                </div>
+
+                <p><strong>Upload and save URL to a file:</strong></p>
+                <div class="code-block">
+                    <span class="comment"># Save the response JSON and extract URL</span><br>
+                    <code>curl -T myfile.txt {{HOSTNAME}} > response.json</code><br>
+                    <code>cat response.json | grep -o '"url":"[^"]*"' | cut -d'"' -f4</code>
+                </div>
+
+                <p><strong>Create a shell function for easy uploads:</strong></p>
+                <div class="code-block">
+                    <span class="comment"># Add to your ~/.bashrc or ~/.zshrc</span><br>
+                    <code>dropx() {</code><br>
+                    <code>  curl -T "$1" {{HOSTNAME}}/"${2:-$(basename $1)}"</code><br>
+                    <code>}</code><br><br>
+                    <span class="comment"># Usage: dropx myfile.txt [custom-name.txt]</span>
+                </div>
+
+                <p><strong>Upload with verbose output:</strong></p>
+                <div class="code-block">
+                    <span class="comment"># See detailed request/response headers</span><br>
+                    <code>curl -T myfile.txt {{HOSTNAME}} -v</code>
+                </div>
+
+                <p><strong>Upload compressed data on-the-fly:</strong></p>
+                <div class="code-block">
+                    <code>tar czf - /path/to/folder | curl -T - {{HOSTNAME}}/backup.tar.gz</code>
+                </div>
             </section>
 
             <section>
