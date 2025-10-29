@@ -21,6 +21,13 @@ pub fn not_found(error: &str, message: &str) -> Result<Response> {
     error_response(error, message, 404)
 }
 
+pub fn file_not_found() -> Result<Response> {
+    not_found(
+        "File not found",
+        "The requested file does not exist or has expired",
+    )
+}
+
 pub fn get_required_param<'a>(
     ctx: &'a RouteContext<()>,
     param: &str,

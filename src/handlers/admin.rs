@@ -1,16 +1,17 @@
 use worker::{Request, Response, RouteContext, Result};
 use crate::models::{
-    CreateApiKeyRequest, ApiKeyResponse, ApiKeyLimits, RevokeApiKeyResponse,
+    CreateApiKeyRequest, ApiKeyResponse, ApiKeyLimits, RevokeApiKeyResponse, ResetRateLimitResponse,
 };
 use crate::services::DatabaseService;
-use crate::utils::auth::{generate_api_key, verify_admin_token};
-use crate::utils::response::{bad_request, unauthorized};
+use crate::utils::auth::{generate_api_key, require_admin_token};
+use crate::utils::response::bad_request;
+use crate::utils::constants::RATE_LIMITER_NAME;
 
 pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
-    if !verify_admin_token(&req, &env)? {
-        return unauthorized("Unauthorized", "Invalid or missing admin token");
+    if let Some(response) = require_admin_token(&req, &env) {
+        return response;
     }
 
     let request_body: CreateApiKeyRequest = match req.json().await {
@@ -46,8 +47,8 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
 }
 
 pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    if !verify_admin_token(&req, &ctx.env)? {
-        return unauthorized("Unauthorized", "Invalid or missing admin token");
+    if let Some(response) = require_admin_token(&req, &ctx.env) {
+        return response;
     }
 
     let key = match ctx.param("key") {
@@ -73,11 +74,40 @@ pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Re
 pub async fn handle_get_stats(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
-    if !verify_admin_token(&req, &env)? {
-        return unauthorized("Unauthorized", "Invalid or missing admin token");
+    if let Some(response) = require_admin_token(&req, &env) {
+        return response;
     }
 
     let stats = DatabaseService::get_stats(&env).await?;
 
     Response::from_json(&stats)
+}
+
+pub async fn handle_reset_rate_limit(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    if let Some(response) = require_admin_token(&req, &ctx.env) {
+        return response;
+    }
+
+    let user_id = match ctx.param("user_id") {
+        Some(id) => id,
+        None => {
+            return bad_request("Missing user_id", "User ID parameter is required");
+        }
+    };
+
+    let namespace = ctx.env.durable_object(RATE_LIMITER_NAME)?;
+    let stub = namespace.id_from_name(user_id)?.get_stub()?;
+
+    let reset_url = "http://rate-limiter/reset";
+    let reset_req = worker::Request::new(reset_url, worker::Method::Get)?;
+    let response = stub.fetch_with_request(reset_req).await?;
+
+    if response.status_code() != 200 {
+        return Response::error("Failed to reset rate limit", response.status_code());
+    }
+
+    Response::from_json(&ResetRateLimitResponse {
+        message: "Rate limit reset successfully".to_string(),
+        user_id: user_id.to_string(),
+    })
 }

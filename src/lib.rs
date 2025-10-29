@@ -23,6 +23,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/admin/api-keys", handlers::handle_create_key)
         .delete_async("/admin/api-keys/:key", handlers::handle_revoke_key)
         .get_async("/admin/stats", handlers::handle_get_stats)
+        .post_async("/admin/rate-limit/reset/:user_id", handlers::handle_reset_rate_limit)
         .run(req, env)
         .await
 }

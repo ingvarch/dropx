@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::utils::constants::{STANDARD_MAX_FILE_SIZE, PREMIUM_MAX_FILE_SIZE, STANDARD_RETENTION_DAYS, PREMIUM_RETENTION_DAYS};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
@@ -34,15 +35,29 @@ impl ApiKeyTier {
 
     pub fn max_file_size(&self) -> usize {
         match self {
-            ApiKeyTier::Standard => 100 * 1024 * 1024,
-            ApiKeyTier::Premium => 500 * 1024 * 1024,
+            ApiKeyTier::Standard => STANDARD_MAX_FILE_SIZE,
+            ApiKeyTier::Premium => PREMIUM_MAX_FILE_SIZE,
         }
     }
 
     pub fn retention_days(&self) -> i64 {
         match self {
-            ApiKeyTier::Standard => 7,
-            ApiKeyTier::Premium => 30,
+            ApiKeyTier::Standard => STANDARD_RETENTION_DAYS,
+            ApiKeyTier::Premium => PREMIUM_RETENTION_DAYS,
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            ApiKeyTier::Standard => "standard",
+            ApiKeyTier::Premium => "premium",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "premium" => ApiKeyTier::Premium,
+            _ => ApiKeyTier::Standard,
         }
     }
 }
@@ -71,6 +86,12 @@ pub struct ApiKeyLimits {
 pub struct RevokeApiKeyResponse {
     pub message: String,
     pub key: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResetRateLimitResponse {
+    pub message: String,
+    pub user_id: String,
 }
 
 pub const ANON_HOURLY_LIMIT: usize = 10;

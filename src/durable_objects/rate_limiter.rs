@@ -1,6 +1,7 @@
 use worker::*;
 use serde::{Deserialize, Serialize};
 use crate::utils::constants::{MILLIS_PER_HOUR, MILLIS_PER_DAY};
+use crate::models::api_key::{ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct RateLimitCounts {
@@ -13,6 +14,7 @@ struct RateLimitCounts {
 #[durable_object]
 pub struct RateLimiter {
     state: State,
+    /// Required by DurableObject trait but not currently used in implementation
     #[allow(dead_code)]
     env: Env,
 }
@@ -32,12 +34,12 @@ impl DurableObject for RateLimiter {
         let hourly_limit: u32 = query_pairs
             .get("hourly")
             .and_then(|v| v.parse().ok())
-            .unwrap_or(10);
+            .unwrap_or(ANON_HOURLY_LIMIT as u32);
 
         let daily_limit: u32 = query_pairs
             .get("daily")
             .and_then(|v| v.parse().ok())
-            .unwrap_or(50);
+            .unwrap_or(ANON_DAILY_LIMIT as u32);
 
         match url.path() {
             "/check" => self.check_limit(hourly_limit, daily_limit).await,
@@ -48,6 +50,13 @@ impl DurableObject for RateLimiter {
 }
 
 impl RateLimiter {
+    fn rate_limit_response(message: &str, reset_at: u64, now: u64) -> Result<Response> {
+        let retry_after = ((reset_at - now) / 1000) as i64;
+        let headers = Headers::new();
+        headers.set("Retry-After", &retry_after.to_string())?;
+        Ok(Response::error(message, 429)?.with_headers(headers))
+    }
+
     async fn check_limit(&self, hourly_limit: u32, daily_limit: u32) -> Result<Response> {
         let mut counts: RateLimitCounts = self
             .state
@@ -69,19 +78,11 @@ impl RateLimiter {
         }
 
         if counts.hourly >= hourly_limit {
-            let retry_after = ((counts.hour_reset_at - now) / 1000) as i64;
-            let headers = Headers::new();
-            headers.set("Retry-After", &retry_after.to_string())?;
-            return Ok(Response::error("Hourly rate limit exceeded", 429)?
-                .with_headers(headers));
+            return Self::rate_limit_response("Hourly rate limit exceeded", counts.hour_reset_at, now);
         }
 
         if counts.daily >= daily_limit {
-            let retry_after = ((counts.day_reset_at - now) / 1000) as i64;
-            let headers = Headers::new();
-            headers.set("Retry-After", &retry_after.to_string())?;
-            return Ok(Response::error("Daily rate limit exceeded", 429)?
-                .with_headers(headers));
+            return Self::rate_limit_response("Daily rate limit exceeded", counts.day_reset_at, now);
         }
 
         counts.hourly += 1;

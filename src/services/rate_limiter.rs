@@ -1,5 +1,6 @@
 use worker::{Env, Result};
 use crate::models::api_key::{ApiKeyTier, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT};
+use crate::utils::constants::RATE_LIMITER_NAME;
 
 pub struct RateLimiterService;
 
@@ -9,12 +10,11 @@ impl RateLimiterService {
         user_id: &str,
         tier: Option<ApiKeyTier>,
     ) -> Result<()> {
-        let namespace = env.durable_object("RATE_LIMITER")?;
+        let namespace = env.durable_object(RATE_LIMITER_NAME)?;
         let stub = namespace.id_from_name(user_id)?.get_stub()?;
 
         let (hourly_limit, daily_limit) = match tier {
-            Some(ApiKeyTier::Standard) => (100, 500),
-            Some(ApiKeyTier::Premium) => (1000, 5000),
+            Some(t) => (t.hourly_limit(), t.daily_limit()),
             None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
         };
 

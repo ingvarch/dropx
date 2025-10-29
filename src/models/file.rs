@@ -21,7 +21,6 @@ pub struct UploadResponse {
     pub mime_type: String,
     pub expires_in: String,
     pub expires_at: i64,
-    pub delete_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

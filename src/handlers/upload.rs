@@ -2,7 +2,7 @@ use worker::{Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService};
 use crate::utils::{generate_file_id, detect_mime_type, hash_identifier};
-use crate::utils::constants::{DEFAULT_RETENTION_DAYS, SECONDS_PER_DAY, DEFAULT_MAX_FILE_SIZE, BYTES_PER_MB};
+use crate::utils::constants::{DEFAULT_RETENTION_DAYS, SECONDS_PER_DAY, DEFAULT_MAX_FILE_SIZE, BYTES_PER_MB, TRANSFER_BUCKET_NAME};
 use crate::utils::response::unauthorized;
 
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -60,7 +60,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 
     let mime_type = detect_mime_type(&filename, &body);
 
-    let bucket = env.bucket("TRANSFER_BUCKET")?;
+    let bucket = env.bucket(TRANSFER_BUCKET_NAME)?;
     StorageService::upload_file(&bucket, &file_id, body).await?;
 
     let now = chrono::Utc::now().timestamp();
@@ -94,7 +94,6 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         mime_type,
         expires_in: format!("{}d", retention_days),
         expires_at,
-        delete_url: None,
     };
 
     Response::from_json(&response)

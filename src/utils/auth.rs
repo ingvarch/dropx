@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 use hex;
-use worker::{Request, Env, Result};
+use worker::{Request, Env, Result, Response};
+use crate::utils::response::unauthorized;
 
 pub fn hash_identifier(identifier: &str) -> String {
     let mut hasher = Sha256::new();
@@ -19,6 +20,14 @@ pub fn verify_admin_token(req: &Request, env: &Env) -> Result<bool> {
     let admin_token = env.var("ADMIN_TOKEN")?.to_string();
 
     Ok(token.as_deref() == Some(admin_token.as_str()))
+}
+
+pub fn require_admin_token(req: &Request, env: &Env) -> Option<Result<Response>> {
+    match verify_admin_token(req, env) {
+        Ok(true) => None,
+        Ok(false) => Some(unauthorized("Unauthorized", "Invalid or missing admin token")),
+        Err(e) => Some(Err(e)),
+    }
 }
 
 #[cfg(test)]

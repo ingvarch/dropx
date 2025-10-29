@@ -1,5 +1,6 @@
-use worker::Result;
+use worker::{Result, D1Database};
 use crate::models::{FileMetadata, ApiKey, ApiKeyTier};
+use crate::utils::constants::DB_NAME;
 use serde::Deserialize;
 
 pub struct DatabaseService;
@@ -42,8 +43,12 @@ struct FileIdResult {
 }
 
 impl DatabaseService {
+    fn get_db(env: &worker::Env) -> Result<D1Database> {
+        env.d1(DB_NAME)
+    }
+
     pub async fn insert_file(env: &worker::Env, file: &FileMetadata) -> Result<()> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare(
             "INSERT INTO files (id, original_filename, size, mime_type, created_at, expires_at, download_count, uploaded_by)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
@@ -64,7 +69,7 @@ impl DatabaseService {
     }
 
     pub async fn get_file(env: &worker::Env, file_id: &str) -> Result<Option<FileMetadata>> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare("SELECT * FROM files WHERE id = ?1");
         let query = statement.bind(&[file_id.into()])?;
 
@@ -84,14 +89,14 @@ impl DatabaseService {
     }
 
     pub async fn increment_download_count(env: &worker::Env, file_id: &str) -> Result<()> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE files SET download_count = download_count + 1 WHERE id = ?1");
         statement.bind(&[file_id.into()])?.run().await?;
         Ok(())
     }
 
     pub async fn delete_expired_files(env: &worker::Env) -> Result<Vec<String>> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let now = chrono::Utc::now().timestamp();
 
         let select_stmt = d1.prepare("SELECT id FROM files WHERE expires_at < ?1");
@@ -118,47 +123,37 @@ impl DatabaseService {
         tier: ApiKeyTier,
         created_at: i64,
     ) -> Result<()> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare(
             "INSERT INTO api_keys (key, user_email, created_at, is_active, tier)
              VALUES (?1, ?2, ?3, ?4, ?5)"
         );
-
-        let tier_str = match tier {
-            ApiKeyTier::Standard => "standard",
-            ApiKeyTier::Premium => "premium",
-        };
 
         statement.bind(&[
             key.into(),
             email.map(|e| e.into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
             (created_at as f64).into(),
             1f64.into(),
-            tier_str.into(),
+            tier.as_str().into(),
         ])?.run().await?;
 
         Ok(())
     }
 
     pub async fn get_api_key(env: &worker::Env, key: &str) -> Result<Option<ApiKey>> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare("SELECT * FROM api_keys WHERE key = ?1");
         let query = statement.bind(&[key.into()])?;
 
         match query.first::<ApiKeyRow>(None).await? {
             Some(row) => {
-                let tier = match row.tier.as_str() {
-                    "premium" => ApiKeyTier::Premium,
-                    _ => ApiKeyTier::Standard,
-                };
-
                 Ok(Some(ApiKey {
                     key: row.key,
                     user_email: row.user_email,
                     created_at: row.created_at,
                     last_used_at: row.last_used_at,
                     is_active: row.is_active == 1,
-                    tier,
+                    tier: ApiKeyTier::from_str(&row.tier),
                 }))
             }
             None => Ok(None),
@@ -166,21 +161,21 @@ impl DatabaseService {
     }
 
     pub async fn update_api_key_last_used(env: &worker::Env, key: &str, timestamp: i64) -> Result<()> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE api_keys SET last_used_at = ?1 WHERE key = ?2");
         statement.bind(&[(timestamp as f64).into(), key.into()])?.run().await?;
         Ok(())
     }
 
     pub async fn revoke_api_key(env: &worker::Env, key: &str) -> Result<bool> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE api_keys SET is_active = 0 WHERE key = ?1");
         statement.bind(&[key.into()])?.run().await?;
         Ok(true)
     }
 
     pub async fn get_stats(env: &worker::Env) -> Result<StatsResponse> {
-        let d1 = env.d1("DB")?;
+        let d1 = Self::get_db(env)?;
         let now = chrono::Utc::now().timestamp();
 
         let total_files = d1.prepare("SELECT COUNT(*) as count FROM files")

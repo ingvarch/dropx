@@ -1,7 +1,14 @@
 name = "dropx"
 main = "build/worker/shim.mjs"
-compatibility_date = "2025-10-29"
+compatibility_date = "2025-10-04"
 workers_dev = true
+
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
