@@ -1,6 +1,7 @@
 use worker::{Result, D1Database};
 use crate::models::{FileMetadata, ApiKey, ApiKeyTier};
 use crate::utils::constants::{DB_NAME, DB_BOOL_TRUE, DB_BOOL_FALSE};
+use crate::utils::current_timestamp;
 use serde::Deserialize;
 
 pub struct DatabaseService;
@@ -15,6 +16,21 @@ struct FileRow {
     expires_at: i64,
     download_count: i64,
     uploaded_by: String,
+}
+
+impl From<FileRow> for FileMetadata {
+    fn from(row: FileRow) -> Self {
+        Self {
+            id: row.id,
+            original_filename: row.original_filename,
+            size: row.size,
+            mime_type: row.mime_type,
+            created_at: row.created_at,
+            expires_at: row.expires_at,
+            download_count: row.download_count as i32,
+            uploaded_by: row.uploaded_by,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -74,16 +90,7 @@ impl DatabaseService {
         let query = statement.bind(&[file_id.into()])?;
 
         match query.first::<FileRow>(None).await? {
-            Some(row) => Ok(Some(FileMetadata {
-                id: row.id,
-                original_filename: row.original_filename,
-                size: row.size,
-                mime_type: row.mime_type,
-                created_at: row.created_at,
-                expires_at: row.expires_at,
-                download_count: row.download_count as i32,
-                uploaded_by: row.uploaded_by,
-            })),
+            Some(row) => Ok(Some(row.into())),
             None => Ok(None),
         }
     }
@@ -97,7 +104,7 @@ impl DatabaseService {
 
     pub async fn delete_expired_files(env: &worker::Env) -> Result<Vec<String>> {
         let d1 = Self::get_db(env)?;
-        let now = chrono::Utc::now().timestamp();
+        let now = current_timestamp();
 
         let select_stmt = d1.prepare("SELECT id FROM files WHERE expires_at < ?1");
         let query = select_stmt.bind(&[(now as f64).into()])?;
@@ -176,7 +183,7 @@ impl DatabaseService {
 
     pub async fn get_stats(env: &worker::Env) -> Result<StatsResponse> {
         let d1 = Self::get_db(env)?;
-        let now = chrono::Utc::now().timestamp();
+        let now = current_timestamp();
 
         let total_files = d1.prepare("SELECT COUNT(*) as count FROM files")
             .first::<CountResult>(None)

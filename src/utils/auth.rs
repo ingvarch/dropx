@@ -31,6 +31,15 @@ pub fn require_admin_token(req: &Request, env: &Env) -> Option<Result<Response>>
     }
 }
 
+#[macro_export]
+macro_rules! require_admin {
+    ($req:expr, $env:expr) => {
+        if let Some(response) = $crate::utils::auth::require_admin_token($req, $env) {
+            return response;
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

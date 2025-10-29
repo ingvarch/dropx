@@ -2,13 +2,25 @@ use worker::{Env, Result};
 use crate::models::api_key::ApiKeyTier;
 use crate::utils::constants::{
     RATE_LIMITER_NAME, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
-    DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK,
+    DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK, DO_RATE_LIMITER_PATH_RESET,
     HTTP_TOO_MANY_REQUESTS, ERR_RATE_LIMIT_EXCEEDED,
 };
 
 pub struct RateLimiterService;
 
 impl RateLimiterService {
+    fn build_check_url(hourly_limit: usize, daily_limit: usize) -> String {
+        format!(
+            "{}{}?hourly={}&daily={}",
+            DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK,
+            hourly_limit, daily_limit
+        )
+    }
+
+    pub fn build_reset_url() -> String {
+        format!("{}{}", DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_RESET)
+    }
+
     pub async fn check_limit(
         env: &Env,
         user_id: &str,
@@ -22,11 +34,7 @@ impl RateLimiterService {
             None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
         };
 
-        let url = format!(
-            "{}{}?hourly={}&daily={}",
-            DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK,
-            hourly_limit, daily_limit
-        );
+        let url = Self::build_check_url(hourly_limit, daily_limit);
 
         let req = worker::Request::new(&url, worker::Method::Get)?;
         let response = stub.fetch_with_request(req).await?;

@@ -2,20 +2,19 @@ use worker::{Request, Response, RouteContext, Result};
 use crate::models::{
     CreateApiKeyRequest, ApiKeyResponse, ApiKeyLimits, RevokeApiKeyResponse, ResetRateLimitResponse,
 };
-use crate::services::DatabaseService;
-use crate::utils::auth::{generate_api_key, require_admin_token};
-use crate::utils::response::bad_request;
+use crate::services::{DatabaseService, RateLimiterService};
+use crate::utils::auth::generate_api_key;
+use crate::utils::response::{bad_request, get_required_param};
+use crate::utils::current_timestamp;
 use crate::utils::constants::{
     RATE_LIMITER_NAME, HTTP_CREATED, HTTP_OK,
-    DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_RESET,
 };
+use crate::require_admin;
 
 pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
-    if let Some(response) = require_admin_token(&req, &env) {
-        return response;
-    }
+    require_admin!(&req, &env);
 
     let request_body: CreateApiKeyRequest = match req.json().await {
         Ok(body) => body,
@@ -25,7 +24,7 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
     };
 
     let key = generate_api_key();
-    let now = chrono::Utc::now().timestamp();
+    let now = current_timestamp();
 
     DatabaseService::insert_api_key(
         &env,
@@ -50,16 +49,9 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
 }
 
 pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    if let Some(response) = require_admin_token(&req, &ctx.env) {
-        return response;
-    }
+    require_admin!(&req, &ctx.env);
 
-    let key = match ctx.param("key") {
-        Some(k) => k,
-        None => {
-            return bad_request("Missing API key", "API key parameter is required");
-        }
-    };
+    let key = get_required_param(&ctx, "key", "API key parameter is required")?;
 
     let success = DatabaseService::revoke_api_key(&ctx.env, key).await?;
 
@@ -77,9 +69,7 @@ pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Re
 pub async fn handle_get_stats(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
-    if let Some(response) = require_admin_token(&req, &env) {
-        return response;
-    }
+    require_admin!(&req, &env);
 
     let stats = DatabaseService::get_stats(&env).await?;
 
@@ -87,21 +77,14 @@ pub async fn handle_get_stats(req: Request, ctx: RouteContext<()>) -> Result<Res
 }
 
 pub async fn handle_reset_rate_limit(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    if let Some(response) = require_admin_token(&req, &ctx.env) {
-        return response;
-    }
+    require_admin!(&req, &ctx.env);
 
-    let user_id = match ctx.param("user_id") {
-        Some(id) => id,
-        None => {
-            return bad_request("Missing user_id", "User ID parameter is required");
-        }
-    };
+    let user_id = get_required_param(&ctx, "user_id", "User ID parameter is required")?;
 
     let namespace = ctx.env.durable_object(RATE_LIMITER_NAME)?;
     let stub = namespace.id_from_name(user_id)?.get_stub()?;
 
-    let reset_url = format!("{}{}", DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_RESET);
+    let reset_url = RateLimiterService::build_reset_url();
     let reset_req = worker::Request::new(&reset_url, worker::Method::Get)?;
     let response = stub.fetch_with_request(reset_req).await?;
 

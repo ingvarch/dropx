@@ -1,6 +1,5 @@
 use worker::{console_log, Env, Result};
 use crate::services::{DatabaseService, StorageService};
-use crate::utils::constants::TRANSFER_BUCKET_NAME;
 
 pub async fn run_cleanup(env: &Env) -> Result<()> {
     console_log!("Starting cleanup job...");
@@ -14,7 +13,7 @@ pub async fn run_cleanup(env: &Env) -> Result<()> {
         return Ok(());
     }
 
-    let bucket = env.bucket(TRANSFER_BUCKET_NAME)?;
+    let bucket = StorageService::get_bucket(env)?;
     let mut deleted_count = 0;
 
     for file_id in &file_ids {

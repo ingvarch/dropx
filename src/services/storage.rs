@@ -1,8 +1,13 @@
-use worker::{Bucket, Result};
+use worker::{Bucket, Env, Result};
+use crate::utils::constants::TRANSFER_BUCKET_NAME;
 
 pub struct StorageService;
 
 impl StorageService {
+    pub fn get_bucket(env: &Env) -> Result<Bucket> {
+        env.bucket(TRANSFER_BUCKET_NAME)
+    }
+
     pub async fn upload_file(bucket: &Bucket, file_id: &str, data: Vec<u8>) -> Result<()> {
         bucket.put(file_id, data).execute().await?;
         Ok(())

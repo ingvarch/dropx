@@ -2,7 +2,7 @@ use worker::{Request, Response, RouteContext, Result, Headers};
 use crate::services::{StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
 use crate::utils::constants::{
-    TRANSFER_BUCKET_NAME, HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION,
+    HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION,
     HEADER_CONTENT_LENGTH, HEADER_DOWNLOAD_COUNT, HEADER_EXPIRES_AT,
 };
 
@@ -16,7 +16,7 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
 
     let _ = DatabaseService::increment_download_count(&ctx.env, file_id).await;
 
-    let bucket = ctx.env.bucket(TRANSFER_BUCKET_NAME)?;
+    let bucket = StorageService::get_bucket(&ctx.env)?;
     let file_data = match StorageService::download_file(&bucket, file_id).await? {
         Some(data) => data,
         None => {

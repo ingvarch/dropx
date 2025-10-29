@@ -18,14 +18,11 @@ struct RateLimitCounts {
 #[durable_object]
 pub struct RateLimiter {
     state: State,
-    /// Required by DurableObject trait but not currently used in implementation
-    #[allow(dead_code)]
-    env: Env,
 }
 
 impl DurableObject for RateLimiter {
-    fn new(state: State, env: Env) -> Self {
-        Self { state, env }
+    fn new(state: State, _env: Env) -> Self {
+        Self { state }
     }
 
     async fn fetch(&self, req: Request) -> Result<Response> {

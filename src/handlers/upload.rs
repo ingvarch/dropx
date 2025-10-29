@@ -1,9 +1,9 @@
 use worker::{Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService};
-use crate::utils::{generate_file_id, detect_mime_type, hash_identifier};
+use crate::utils::{generate_file_id, detect_mime_type, hash_identifier, current_timestamp};
 use crate::utils::constants::{
-    STANDARD_RETENTION_DAYS, SECONDS_PER_DAY, STANDARD_MAX_FILE_SIZE, BYTES_PER_MB, TRANSFER_BUCKET_NAME,
+    STANDARD_RETENTION_DAYS, SECONDS_PER_DAY, STANDARD_MAX_FILE_SIZE, BYTES_PER_MB,
     HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
@@ -17,7 +17,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let (user_id, tier) = if let Some(key) = &api_key {
         match DatabaseService::get_api_key(&env, key).await? {
             Some(api_key_data) if api_key_data.is_active => {
-                let now = chrono::Utc::now().timestamp();
+                let now = current_timestamp();
                 let _ = DatabaseService::update_api_key_last_used(&env, key, now).await;
                 (key.clone(), Some(api_key_data.tier))
             }
@@ -64,10 +64,10 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 
     let mime_type = detect_mime_type(&filename, &body);
 
-    let bucket = env.bucket(TRANSFER_BUCKET_NAME)?;
+    let bucket = StorageService::get_bucket(&env)?;
     StorageService::upload_file(&bucket, &file_id, body).await?;
 
-    let now = chrono::Utc::now().timestamp();
+    let now = current_timestamp();
     let retention_days = tier
         .map(|t| t.retention_days())
         .unwrap_or(STANDARD_RETENTION_DAYS);
