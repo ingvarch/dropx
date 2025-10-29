@@ -6,6 +6,7 @@ pub mod constants;
 pub mod time;
 pub mod content_negotiation;
 pub mod templates;
+pub mod validation;
 
 pub use id_generator::generate_file_id;
 pub use mime::detect_mime_type;

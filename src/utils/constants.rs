@@ -61,3 +61,147 @@ pub const ERR_FILE_ID_REQUIRED: &str = "File ID is required";
 
 pub const UNKNOWN_IP_ADDRESS: &str = "unknown";
 pub const DEFAULT_FILENAME: &str = "file";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bytes_conversion_constants() {
+        assert_eq!(BYTES_PER_KB, 1024);
+        assert_eq!(BYTES_PER_MB, 1024 * 1024);
+        assert_eq!(BYTES_PER_MB, 1_048_576);
+    }
+
+    #[test]
+    fn test_file_size_limits_correct_values() {
+        assert_eq!(STANDARD_MAX_FILE_SIZE, 100 * 1024 * 1024);
+        assert_eq!(STANDARD_MAX_FILE_SIZE, 104_857_600);
+
+        assert_eq!(PREMIUM_MAX_FILE_SIZE, 500 * 1024 * 1024);
+        assert_eq!(PREMIUM_MAX_FILE_SIZE, 524_288_000);
+    }
+
+    #[test]
+    fn test_file_size_limits_relationship() {
+        assert!(PREMIUM_MAX_FILE_SIZE > STANDARD_MAX_FILE_SIZE);
+        assert_eq!(PREMIUM_MAX_FILE_SIZE, STANDARD_MAX_FILE_SIZE * 5);
+    }
+
+    #[test]
+    fn test_retention_days_constants() {
+        assert_eq!(STANDARD_RETENTION_DAYS, 7);
+        assert_eq!(PREMIUM_RETENTION_DAYS, 30);
+    }
+
+    #[test]
+    fn test_retention_days_relationship() {
+        assert!(PREMIUM_RETENTION_DAYS > STANDARD_RETENTION_DAYS);
+    }
+
+    #[test]
+    fn test_time_constants_milliseconds() {
+        assert_eq!(MILLIS_PER_SECOND, 1000);
+        assert_eq!(MILLIS_PER_HOUR, 3_600_000);
+        assert_eq!(MILLIS_PER_DAY, 86_400_000);
+    }
+
+    #[test]
+    fn test_time_constants_seconds() {
+        assert_eq!(SECONDS_PER_DAY, 86_400);
+    }
+
+    #[test]
+    fn test_time_constants_relationships() {
+        assert_eq!(MILLIS_PER_HOUR, 60 * 60 * MILLIS_PER_SECOND);
+        assert_eq!(MILLIS_PER_DAY, 24 * MILLIS_PER_HOUR);
+    }
+
+    #[test]
+    fn test_rate_limits_anonymous() {
+        assert_eq!(ANON_HOURLY_LIMIT, 10);
+        assert_eq!(ANON_DAILY_LIMIT, 50);
+        assert!(ANON_DAILY_LIMIT > ANON_HOURLY_LIMIT);
+    }
+
+    #[test]
+    fn test_rate_limits_standard() {
+        assert_eq!(STANDARD_HOURLY_LIMIT, 100);
+        assert_eq!(STANDARD_DAILY_LIMIT, 500);
+        assert!(STANDARD_DAILY_LIMIT > STANDARD_HOURLY_LIMIT);
+    }
+
+    #[test]
+    fn test_rate_limits_premium() {
+        assert_eq!(PREMIUM_HOURLY_LIMIT, 1000);
+        assert_eq!(PREMIUM_DAILY_LIMIT, 5000);
+        assert!(PREMIUM_DAILY_LIMIT > PREMIUM_HOURLY_LIMIT);
+    }
+
+    #[test]
+    fn test_rate_limits_tier_progression() {
+        assert!(STANDARD_HOURLY_LIMIT > ANON_HOURLY_LIMIT);
+        assert!(PREMIUM_HOURLY_LIMIT > STANDARD_HOURLY_LIMIT);
+
+        assert!(STANDARD_DAILY_LIMIT > ANON_DAILY_LIMIT);
+        assert!(PREMIUM_DAILY_LIMIT > STANDARD_DAILY_LIMIT);
+    }
+
+    #[test]
+    fn test_rate_limits_tier_multipliers() {
+        assert_eq!(STANDARD_HOURLY_LIMIT, ANON_HOURLY_LIMIT * 10);
+        assert_eq!(PREMIUM_HOURLY_LIMIT, STANDARD_HOURLY_LIMIT * 10);
+
+        assert_eq!(STANDARD_DAILY_LIMIT, ANON_DAILY_LIMIT * 10);
+        assert_eq!(PREMIUM_DAILY_LIMIT, STANDARD_DAILY_LIMIT * 10);
+    }
+
+    #[test]
+    fn test_http_status_codes() {
+        assert_eq!(HTTP_OK, 200);
+        assert_eq!(HTTP_CREATED, 201);
+        assert_eq!(HTTP_BAD_REQUEST, 400);
+        assert_eq!(HTTP_UNAUTHORIZED, 401);
+        assert_eq!(HTTP_NOT_FOUND, 404);
+        assert_eq!(HTTP_PAYLOAD_TOO_LARGE, 413);
+        assert_eq!(HTTP_TOO_MANY_REQUESTS, 429);
+    }
+
+    #[test]
+    fn test_hash_and_id_constants() {
+        assert_eq!(HASH_TRUNCATE_BYTES, 16);
+        assert_eq!(FILE_ID_UUID_BYTES, 8);
+        assert_eq!(MIN_MAGIC_BYTES_LENGTH, 4);
+    }
+
+    #[test]
+    fn test_db_bool_constants() {
+        assert_eq!(DB_BOOL_TRUE, 1);
+        assert_eq!(DB_BOOL_FALSE, 0);
+        assert_ne!(DB_BOOL_TRUE, DB_BOOL_FALSE);
+    }
+
+    #[test]
+    fn test_error_messages_not_empty() {
+        assert!(!ERR_RATE_LIMIT_EXCEEDED.is_empty());
+        assert!(!ERR_FILE_NOT_FOUND.is_empty());
+        assert!(!ERR_INVALID_API_KEY.is_empty());
+        assert!(!ERR_FILE_TOO_LARGE.is_empty());
+        assert!(!ERR_FILE_ID_REQUIRED.is_empty());
+    }
+
+    #[test]
+    fn test_header_names_not_empty() {
+        assert!(!HEADER_API_KEY.is_empty());
+        assert!(!HEADER_ADMIN_TOKEN.is_empty());
+        assert!(!HEADER_CF_CONNECTING_IP.is_empty());
+        assert!(!HEADER_CONTENT_TYPE.is_empty());
+    }
+
+    #[test]
+    fn test_durable_object_urls() {
+        assert!(DO_RATE_LIMITER_BASE_URL.starts_with("http"));
+        assert!(DO_RATE_LIMITER_PATH_CHECK.starts_with('/'));
+        assert!(DO_RATE_LIMITER_PATH_RESET.starts_with('/'));
+    }
+}
