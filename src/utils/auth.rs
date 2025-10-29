@@ -1,0 +1,56 @@
+use sha2::{Digest, Sha256};
+use hex;
+use worker::{Request, Env, Result};
+
+pub fn hash_identifier(identifier: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(identifier.as_bytes());
+    let result = hasher.finalize();
+    hex::encode(&result[..16])
+}
+
+pub fn generate_api_key() -> String {
+    let uuid = uuid::Uuid::new_v4();
+    format!("tfr_{}", hex::encode(uuid.as_bytes()))
+}
+
+pub fn verify_admin_token(req: &Request, env: &Env) -> Result<bool> {
+    let token = req.headers().get("X-Admin-Token")?;
+    let admin_token = env.var("ADMIN_TOKEN")?.to_string();
+
+    Ok(token.as_deref() == Some(admin_token.as_str()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_identifier_consistency() {
+        let id = "192.168.1.1";
+        let hash1 = hash_identifier(id);
+        let hash2 = hash_identifier(id);
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_hash_identifier_uniqueness() {
+        let hash1 = hash_identifier("192.168.1.1");
+        let hash2 = hash_identifier("192.168.1.2");
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_generate_api_key() {
+        let key = generate_api_key();
+        assert!(key.starts_with("tfr_"));
+        assert!(key.len() > 20);
+    }
+
+    #[test]
+    fn test_generate_api_key_uniqueness() {
+        let key1 = generate_api_key();
+        let key2 = generate_api_key();
+        assert_ne!(key1, key2);
+    }
+}

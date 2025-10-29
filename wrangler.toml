@@ -1,0 +1,42 @@
+name = "dropx"
+main = "build/worker/shim.mjs"
+compatibility_date = "2025-10-29"
+workers_dev = true
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "TRANSFER_BUCKET"
+bucket_name = "assets-dropx-click"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "dropx-db"
+database_id = "42add581-ee19-4023-9b49-9137b36ff81e"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+script_name = "dropx"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+# Cron Trigger - Daily at 2AM UTC
+[triggers]
+crons = ["0 2 * * *"]
+
+# Environment Variables
+[vars]
+MAX_FILE_SIZE_MB = "100"
+DEFAULT_RETENTION_DAYS = "7"
+ADMIN_TOKEN = "change-me-in-production"
+ANON_HOURLY_LIMIT = "10"
+ANON_DAILY_LIMIT = "50"
+AUTHED_HOURLY_LIMIT = "100"
+AUTHED_DAILY_LIMIT = "500"

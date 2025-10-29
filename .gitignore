@@ -1,0 +1,10 @@
+target
+node_modules
+.wrangler
+build
+.env
+.DS_Store
+Cargo.lock
+*.swp
+*.swo
+*~

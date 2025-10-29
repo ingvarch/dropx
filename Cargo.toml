@@ -1,0 +1,27 @@
+[package]
+name = "dropx"
+version = "0.1.0"
+edition = "2021"
+authors = ["Igor Churmeev <ingvarch@gmail.com>"]
+description = "Fast and secure temporary file sharing service built on Cloudflare Workers with R2 storage, D1 database, and rate limiting"
+repository = "https://github.com/ingvarch/dropx"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = { version = "0.6", features = ["d1"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base58 = "0.2"
+chrono = "0.4"
+uuid = { version = "1.0", features = ["v4", "serde", "js"] }
+sha2 = "0.10"
+hex = "0.4"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

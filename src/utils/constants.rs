@@ -1,0 +1,15 @@
+pub const BYTES_PER_KB: usize = 1024;
+pub const BYTES_PER_MB: usize = 1024 * BYTES_PER_KB;
+
+pub const DEFAULT_MAX_FILE_SIZE: usize = 100 * BYTES_PER_MB;
+
+pub const DEFAULT_RETENTION_DAYS: i64 = 7;
+
+pub const MILLIS_PER_SECOND: u64 = 1000;
+pub const MILLIS_PER_MINUTE: u64 = 60 * MILLIS_PER_SECOND;
+pub const MILLIS_PER_HOUR: u64 = 60 * MILLIS_PER_MINUTE;
+pub const MILLIS_PER_DAY: u64 = 24 * MILLIS_PER_HOUR;
+
+pub const SECONDS_PER_MINUTE: i64 = 60;
+pub const SECONDS_PER_HOUR: i64 = 60 * SECONDS_PER_MINUTE;
+pub const SECONDS_PER_DAY: i64 = 24 * SECONDS_PER_HOUR;
