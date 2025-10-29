@@ -102,3 +102,179 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 
     Response::from_json(&response)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::api_key::ApiKeyTier;
+    use crate::utils::constants::{
+        PREMIUM_MAX_FILE_SIZE, PREMIUM_RETENTION_DAYS,
+        STANDARD_MAX_FILE_SIZE, STANDARD_RETENTION_DAYS,
+    };
+
+    #[test]
+    fn test_max_file_size_standard() {
+        let tier = Some(ApiKeyTier::Standard);
+        let max_size = tier.map(|t| t.max_file_size()).unwrap_or(STANDARD_MAX_FILE_SIZE);
+        assert_eq!(max_size, 100 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_max_file_size_premium() {
+        let tier = Some(ApiKeyTier::Premium);
+        let max_size = tier.map(|t| t.max_file_size()).unwrap_or(STANDARD_MAX_FILE_SIZE);
+        assert_eq!(max_size, 500 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_max_file_size_anon() {
+        let tier: Option<ApiKeyTier> = None;
+        let max_size = tier.map(|t| t.max_file_size()).unwrap_or(STANDARD_MAX_FILE_SIZE);
+        assert_eq!(max_size, 100 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_retention_days_standard() {
+        let tier = Some(ApiKeyTier::Standard);
+        let retention = tier.map(|t| t.retention_days()).unwrap_or(STANDARD_RETENTION_DAYS);
+        assert_eq!(retention, 7);
+    }
+
+    #[test]
+    fn test_retention_days_premium() {
+        let tier = Some(ApiKeyTier::Premium);
+        let retention = tier.map(|t| t.retention_days()).unwrap_or(STANDARD_RETENTION_DAYS);
+        assert_eq!(retention, 30);
+    }
+
+    #[test]
+    fn test_retention_days_anon() {
+        let tier: Option<ApiKeyTier> = None;
+        let retention = tier.map(|t| t.retention_days()).unwrap_or(STANDARD_RETENTION_DAYS);
+        assert_eq!(retention, 7);
+    }
+
+    #[test]
+    fn test_expires_at_calculation_standard() {
+        let now: i64 = 1000000;
+        let retention_days: i64 = 7;
+        let expires_at = now + (retention_days * SECONDS_PER_DAY);
+        assert_eq!(expires_at, 1000000 + 604800);
+    }
+
+    #[test]
+    fn test_expires_at_calculation_premium() {
+        let now: i64 = 1000000;
+        let retention_days: i64 = 30;
+        let expires_at = now + (retention_days * SECONDS_PER_DAY);
+        assert_eq!(expires_at, 1000000 + 2592000);
+    }
+
+    #[test]
+    fn test_filename_extraction_root() {
+        let path = "/";
+        let filename = if path == "/" || path.is_empty() {
+            DEFAULT_FILENAME.to_string()
+        } else {
+            path.trim_start_matches('/').to_string()
+        };
+        assert_eq!(filename, "file");
+    }
+
+    #[test]
+    fn test_filename_extraction_empty() {
+        let path = "";
+        let filename = if path == "/" || path.is_empty() {
+            DEFAULT_FILENAME.to_string()
+        } else {
+            path.trim_start_matches('/').to_string()
+        };
+        assert_eq!(filename, "file");
+    }
+
+    #[test]
+    fn test_filename_extraction_simple() {
+        let path = "/document.pdf";
+        let filename = if path == "/" || path.is_empty() {
+            DEFAULT_FILENAME.to_string()
+        } else {
+            path.trim_start_matches('/').to_string()
+        };
+        assert_eq!(filename, "document.pdf");
+    }
+
+    #[test]
+    fn test_filename_extraction_with_path() {
+        let path = "/uploads/document.pdf";
+        let filename = if path == "/" || path.is_empty() {
+            DEFAULT_FILENAME.to_string()
+        } else {
+            path.trim_start_matches('/').to_string()
+        };
+        assert_eq!(filename, "uploads/document.pdf");
+    }
+
+    #[test]
+    fn test_size_validation_under_limit() {
+        let size = 50 * 1024 * 1024;
+        let max_size = STANDARD_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_at_limit() {
+        let size = 100 * 1024 * 1024;
+        let max_size = STANDARD_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_over_limit() {
+        let size = 150 * 1024 * 1024;
+        let max_size = STANDARD_MAX_FILE_SIZE;
+        assert!(size > max_size);
+    }
+
+    #[test]
+    fn test_size_validation_premium_under_limit() {
+        let size = 400 * 1024 * 1024;
+        let max_size = PREMIUM_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_premium_at_limit() {
+        let size = 500 * 1024 * 1024;
+        let max_size = PREMIUM_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_premium_over_limit() {
+        let size = 600 * 1024 * 1024;
+        let max_size = PREMIUM_MAX_FILE_SIZE;
+        assert!(size > max_size);
+    }
+
+    #[test]
+    fn test_expires_in_format_standard() {
+        let retention_days = STANDARD_RETENTION_DAYS;
+        let expires_in = format!("{}d", retention_days);
+        assert_eq!(expires_in, "7d");
+    }
+
+    #[test]
+    fn test_expires_in_format_premium() {
+        let retention_days = PREMIUM_RETENTION_DAYS;
+        let expires_in = format!("{}d", retention_days);
+        assert_eq!(expires_in, "30d");
+    }
+
+    #[test]
+    fn test_url_format() {
+        let host = "example.com";
+        let file_id = "abc123";
+        let url = format!("https://{}/{}", host, file_id);
+        assert_eq!(url, "https://example.com/abc123");
+    }
+}

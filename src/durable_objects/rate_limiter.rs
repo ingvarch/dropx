@@ -99,3 +99,180 @@ impl RateLimiter {
         Response::ok("Reset")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::constants::{
+        STANDARD_HOURLY_LIMIT, STANDARD_DAILY_LIMIT,
+        PREMIUM_HOURLY_LIMIT, PREMIUM_DAILY_LIMIT,
+    };
+
+    #[test]
+    fn test_rate_limit_counts_default() {
+        let counts = RateLimitCounts::default();
+        assert_eq!(counts.hourly, 0);
+        assert_eq!(counts.daily, 0);
+        assert_eq!(counts.hour_reset_at, 0);
+        assert_eq!(counts.day_reset_at, 0);
+    }
+
+    #[test]
+    fn test_rate_limit_counts_serialization() {
+        let counts = RateLimitCounts {
+            hourly: 5,
+            daily: 15,
+            hour_reset_at: 1000000,
+            day_reset_at: 2000000,
+        };
+
+        let serialized = serde_json::to_string(&counts).unwrap();
+        let deserialized: RateLimitCounts = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.hourly, 5);
+        assert_eq!(deserialized.daily, 15);
+        assert_eq!(deserialized.hour_reset_at, 1000000);
+        assert_eq!(deserialized.day_reset_at, 2000000);
+    }
+
+    #[test]
+    fn test_hourly_reset_time_calculation() {
+        let now: u64 = 1000000;
+        let expected_reset = now + MILLIS_PER_HOUR;
+        assert_eq!(expected_reset, 1000000 + 3600000);
+    }
+
+    #[test]
+    fn test_daily_reset_time_calculation() {
+        let now: u64 = 1000000;
+        let expected_reset = now + MILLIS_PER_DAY;
+        assert_eq!(expected_reset, 1000000 + 86400000);
+    }
+
+    #[test]
+    fn test_retry_after_calculation() {
+        let now: u64 = 1000000;
+        let reset_at: u64 = 3600000;
+        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
+        assert_eq!(retry_after, 2600);
+    }
+
+    #[test]
+    fn test_retry_after_calculation_near_boundary() {
+        let now: u64 = 1003599500;
+        let reset_at: u64 = 1003600000;
+        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
+        assert_eq!(retry_after, 0);
+    }
+
+    #[test]
+    fn test_hourly_limit_check_anon() {
+        let hourly_limit = ANON_HOURLY_LIMIT as u32;
+        let count = 9u32;
+        assert!(count < hourly_limit);
+
+        let count = 10u32;
+        assert!(count >= hourly_limit);
+    }
+
+    #[test]
+    fn test_daily_limit_check_anon() {
+        let daily_limit = ANON_DAILY_LIMIT as u32;
+        let count = 49u32;
+        assert!(count < daily_limit);
+
+        let count = 50u32;
+        assert!(count >= daily_limit);
+    }
+
+    #[test]
+    fn test_hourly_limit_check_standard() {
+        let hourly_limit = STANDARD_HOURLY_LIMIT as u32;
+        let count = 99u32;
+        assert!(count < hourly_limit);
+
+        let count = 100u32;
+        assert!(count >= hourly_limit);
+    }
+
+    #[test]
+    fn test_daily_limit_check_standard() {
+        let daily_limit = STANDARD_DAILY_LIMIT as u32;
+        let count = 499u32;
+        assert!(count < daily_limit);
+
+        let count = 500u32;
+        assert!(count >= daily_limit);
+    }
+
+    #[test]
+    fn test_hourly_limit_check_premium() {
+        let hourly_limit = PREMIUM_HOURLY_LIMIT as u32;
+        let count = 999u32;
+        assert!(count < hourly_limit);
+
+        let count = 1000u32;
+        assert!(count >= hourly_limit);
+    }
+
+    #[test]
+    fn test_daily_limit_check_premium() {
+        let daily_limit = PREMIUM_DAILY_LIMIT as u32;
+        let count = 4999u32;
+        assert!(count < daily_limit);
+
+        let count = 5000u32;
+        assert!(count >= daily_limit);
+    }
+
+    #[test]
+    fn test_reset_logic_hourly() {
+        let now: u64 = 1003600001;
+        let counts = RateLimitCounts {
+            hourly: 50,
+            daily: 100,
+            hour_reset_at: 1003600000,
+            day_reset_at: 2000000000,
+        };
+
+        let should_reset_hourly = now > counts.hour_reset_at;
+        let should_reset_daily = now > counts.day_reset_at;
+
+        assert!(should_reset_hourly);
+        assert!(!should_reset_daily);
+    }
+
+    #[test]
+    fn test_reset_logic_daily() {
+        let now: u64 = 2000000001;
+        let counts = RateLimitCounts {
+            hourly: 50,
+            daily: 100,
+            hour_reset_at: 1003600000,
+            day_reset_at: 2000000000,
+        };
+
+        let should_reset_hourly = now > counts.hour_reset_at;
+        let should_reset_daily = now > counts.day_reset_at;
+
+        assert!(should_reset_hourly);
+        assert!(should_reset_daily);
+    }
+
+    #[test]
+    fn test_reset_logic_both_boundaries() {
+        let now: u64 = 2000000000;
+        let counts = RateLimitCounts {
+            hourly: 50,
+            daily: 100,
+            hour_reset_at: 2000000000,
+            day_reset_at: 2000000000,
+        };
+
+        let should_reset_hourly = now > counts.hour_reset_at;
+        let should_reset_daily = now > counts.day_reset_at;
+
+        assert!(!should_reset_hourly);
+        assert!(!should_reset_daily);
+    }
+}

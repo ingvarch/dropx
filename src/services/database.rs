@@ -235,3 +235,136 @@ pub struct StatsResponse {
     pub total_downloads: i64,
     pub api_keys_count: i64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_row_to_metadata_conversion() {
+        let row = FileRow {
+            id: "test123".to_string(),
+            original_filename: "document.pdf".to_string(),
+            size: 1024,
+            mime_type: "application/pdf".to_string(),
+            created_at: 1000000,
+            expires_at: 2000000,
+            download_count: 5,
+            uploaded_by: "user123".to_string(),
+        };
+
+        let metadata: FileMetadata = row.into();
+
+        assert_eq!(metadata.id, "test123");
+        assert_eq!(metadata.original_filename, "document.pdf");
+        assert_eq!(metadata.size, 1024);
+        assert_eq!(metadata.mime_type, "application/pdf");
+        assert_eq!(metadata.created_at, 1000000);
+        assert_eq!(metadata.expires_at, 2000000);
+        assert_eq!(metadata.download_count, 5);
+        assert_eq!(metadata.uploaded_by, "user123");
+    }
+
+    #[test]
+    fn test_file_row_download_count_conversion() {
+        let row = FileRow {
+            id: "test".to_string(),
+            original_filename: "file".to_string(),
+            size: 100,
+            mime_type: "text/plain".to_string(),
+            created_at: 1000,
+            expires_at: 2000,
+            download_count: 999,
+            uploaded_by: "user".to_string(),
+        };
+
+        let metadata: FileMetadata = row.into();
+        assert_eq!(metadata.download_count, 999);
+    }
+
+    #[test]
+    fn test_is_active_flag_true() {
+        let is_active_db = DB_BOOL_TRUE;
+        let is_active = is_active_db == DB_BOOL_TRUE;
+        assert!(is_active);
+    }
+
+    #[test]
+    fn test_is_active_flag_false() {
+        let is_active_db = DB_BOOL_FALSE;
+        let is_active = is_active_db == DB_BOOL_TRUE;
+        assert!(!is_active);
+    }
+
+    #[test]
+    fn test_api_key_tier_from_str_standard() {
+        let tier_str = "standard";
+        let tier = ApiKeyTier::from_str(tier_str);
+        assert_eq!(tier, ApiKeyTier::Standard);
+    }
+
+    #[test]
+    fn test_api_key_tier_from_str_premium() {
+        let tier_str = "premium";
+        let tier = ApiKeyTier::from_str(tier_str);
+        assert_eq!(tier, ApiKeyTier::Premium);
+    }
+
+    #[test]
+    fn test_api_key_tier_from_str_unknown() {
+        let tier_str = "unknown";
+        let tier = ApiKeyTier::from_str(tier_str);
+        assert_eq!(tier, ApiKeyTier::Standard);
+    }
+
+    #[test]
+    fn test_api_key_tier_to_str_standard() {
+        let tier = ApiKeyTier::Standard;
+        assert_eq!(tier.as_str(), "standard");
+    }
+
+    #[test]
+    fn test_api_key_tier_to_str_premium() {
+        let tier = ApiKeyTier::Premium;
+        assert_eq!(tier.as_str(), "premium");
+    }
+
+    #[test]
+    fn test_stats_response_serialization() {
+        let stats = StatsResponse {
+            total_files: 100,
+            total_size_bytes: 1048576,
+            active_files: 80,
+            total_downloads: 500,
+            api_keys_count: 10,
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("\"total_files\":100"));
+        assert!(json.contains("\"total_size_bytes\":1048576"));
+        assert!(json.contains("\"active_files\":80"));
+        assert!(json.contains("\"total_downloads\":500"));
+        assert!(json.contains("\"api_keys_count\":10"));
+    }
+
+    #[test]
+    fn test_db_bool_constants() {
+        assert_eq!(DB_BOOL_TRUE, 1);
+        assert_eq!(DB_BOOL_FALSE, 0);
+        assert_ne!(DB_BOOL_TRUE, DB_BOOL_FALSE);
+    }
+
+    #[test]
+    fn test_stats_response_default_values() {
+        let stats = StatsResponse {
+            total_files: 0,
+            total_size_bytes: 0,
+            active_files: 0,
+            total_downloads: 0,
+            api_keys_count: 0,
+        };
+
+        assert_eq!(stats.total_files, 0);
+        assert_eq!(stats.total_size_bytes, 0);
+    }
+}

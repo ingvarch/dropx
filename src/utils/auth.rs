@@ -72,4 +72,73 @@ mod tests {
         let key2 = generate_api_key();
         assert_ne!(key1, key2);
     }
+
+    #[test]
+    fn test_hash_identifier_length() {
+        let hash = hash_identifier("test");
+        assert_eq!(hash.len(), HASH_TRUNCATE_BYTES * 2);
+    }
+
+    #[test]
+    fn test_hash_identifier_hex_format() {
+        let hash = hash_identifier("test");
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_hash_identifier_empty_string() {
+        let hash1 = hash_identifier("");
+        let hash2 = hash_identifier("");
+        assert_eq!(hash1, hash2);
+        assert_eq!(hash1.len(), HASH_TRUNCATE_BYTES * 2);
+    }
+
+    #[test]
+    fn test_hash_identifier_different_inputs() {
+        let hash1 = hash_identifier("user@example.com");
+        let hash2 = hash_identifier("admin@example.com");
+        let hash3 = hash_identifier("test@example.com");
+
+        assert_ne!(hash1, hash2);
+        assert_ne!(hash2, hash3);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_generate_api_key_format() {
+        let key = generate_api_key();
+
+        assert!(key.starts_with("tfr_"));
+
+        let hex_part = &key[4..];
+        assert!(hex_part.chars().all(|c| c.is_ascii_hexdigit()));
+
+        assert_eq!(hex_part.len(), 32);
+    }
+
+    #[test]
+    fn test_generate_api_key_length() {
+        let key = generate_api_key();
+        assert_eq!(key.len(), 36);
+    }
+
+    #[test]
+    fn test_hash_identifier_special_characters() {
+        let hash1 = hash_identifier("test!@#$%");
+        let hash2 = hash_identifier("test!@#$%");
+        assert_eq!(hash1, hash2);
+
+        let hash3 = hash_identifier("test");
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_hash_identifier_no_input_leakage() {
+        let sensitive = "secret_password_123";
+        let hash = hash_identifier(sensitive);
+
+        assert!(!hash.contains("secret"));
+        assert!(!hash.contains("password"));
+        assert!(!hash.contains("123"));
+    }
 }
