@@ -25,7 +25,7 @@ pub async fn handle_landing(req: Request, _ctx: RouteContext<()>) -> Result<Resp
         None => "https://dropx.click".to_string(), // fallback
     };
 
-    let mut response = if accepts_html(&headers) {
+    let mut response = if accepts_html(headers) {
         // Browser request - return HTML landing page
         let html = render_landing_page(&hostname);
         Response::from_html(html)?
