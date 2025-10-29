@@ -295,10 +295,15 @@
 
                 <p><strong>Create a shell function for easy uploads:</strong></p>
                 <div class="code-block">
-                    <span class="comment"># Add to your ~/.bashrc or ~/.zshrc</span><br>
+                    <span class="comment"># Bash/Zsh: Add to your ~/.bashrc or ~/.zshrc</span><br>
                     <code>dropx() {</code><br>
                     <code>  curl -T "$1" {{HOSTNAME}}/"${2:-$(basename $1)}"</code><br>
                     <code>}</code><br><br>
+                    <span class="comment"># Fish: Add to your ~/.config/fish/functions/dropx.fish</span><br>
+                    <code>function dropx</code><br>
+                    <code>  set filename (test -n "$argv[2]"; and echo $argv[2]; or basename $argv[1])</code><br>
+                    <code>  curl -T $argv[1] {{HOSTNAME}}/$filename</code><br>
+                    <code>end</code><br><br>
                     <span class="comment"># Usage: dropx myfile.txt [custom-name.txt]</span>
                 </div>
 
