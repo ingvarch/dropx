@@ -15,7 +15,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let router = Router::new();
 
     router
-        .get("/", |_, _| Response::ok("DropX - File Transfer Service"))
+        .get_async("/", handlers::handle_landing)
         .post_async("/", handlers::handle_upload)
         .put_async("/:filename", handlers::handle_upload)
         .get_async("/:id/info", handlers::handle_info)
