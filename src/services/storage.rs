@@ -1,5 +1,6 @@
 use worker::{Bucket, Env, Result};
 use crate::utils::constants::TRANSFER_BUCKET_NAME;
+use crate::utils::generate_storage_path;
 
 pub struct StorageService;
 
@@ -9,12 +10,14 @@ impl StorageService {
     }
 
     pub async fn upload_file(bucket: &Bucket, file_id: &str, data: Vec<u8>) -> Result<()> {
-        bucket.put(file_id, data).execute().await?;
+        let storage_path = generate_storage_path(file_id);
+        bucket.put(&storage_path, data).execute().await?;
         Ok(())
     }
 
     pub async fn download_file(bucket: &Bucket, file_id: &str) -> Result<Option<Vec<u8>>> {
-        let object = bucket.get(file_id).execute().await?;
+        let storage_path = generate_storage_path(file_id);
+        let object = bucket.get(&storage_path).execute().await?;
 
         match object {
             Some(obj) => {
@@ -29,7 +32,8 @@ impl StorageService {
     }
 
     pub async fn delete_file(bucket: &Bucket, file_id: &str) -> Result<()> {
-        bucket.delete(file_id).await?;
+        let storage_path = generate_storage_path(file_id);
+        bucket.delete(&storage_path).await?;
         Ok(())
     }
 }
