@@ -107,56 +107,39 @@
             font-size: 0.95rem;
         }
 
-        .tiers {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
+        .limits {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            border-radius: 8px;
             margin: 1.5rem 0;
         }
 
-        .tier {
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 8px;
-            border: 2px solid #dee2e6;
-        }
-
-        .tier.premium {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-
-        .tier h3 {
-            font-size: 1.5rem;
+        .limits h3 {
+            color: #667eea;
             margin-bottom: 1rem;
+            font-size: 1.3rem;
         }
 
-        .tier.premium h3 {
-            color: white;
-        }
-
-        .tier ul {
+        .limits ul {
             list-style: none;
             margin-top: 1rem;
         }
 
-        .tier li {
+        .limits li {
             padding: 0.5rem 0;
             padding-left: 1.5rem;
             position: relative;
+            color: #555;
         }
 
-        .tier li:before {
-            content: "✓";
+        .limits li:before {
+            content: "•";
             position: absolute;
             left: 0;
             color: #667eea;
             font-weight: bold;
-        }
-
-        .tier.premium li:before {
-            color: #ffd700;
+            font-size: 1.2rem;
         }
 
         footer {
@@ -216,11 +199,6 @@
                 <div class="code-block">
                     <code>curl -T myfile.txt {{HOSTNAME}}/custom-name.txt</code>
                 </div>
-
-                <p>With an API key for higher limits:</p>
-                <div class="code-block">
-                    <code>curl -H "X-API-Key: your-api-key" -T myfile.txt {{HOSTNAME}}</code>
-                </div>
             </section>
 
             <section>
@@ -246,35 +224,15 @@
             </section>
 
             <section>
-                <h2>API Tiers</h2>
-                <div class="tiers">
-                    <div class="tier">
-                        <h3>Anonymous</h3>
-                        <ul>
-                            <li>10 uploads per hour</li>
-                            <li>50 uploads per day</li>
-                            <li>Basic file size limit</li>
-                            <li>Standard retention</li>
-                        </ul>
-                    </div>
-                    <div class="tier">
-                        <h3>Standard</h3>
-                        <ul>
-                            <li>100 uploads per hour</li>
-                            <li>500 uploads per day</li>
-                            <li>Standard file size limit</li>
-                            <li>Standard retention period</li>
-                        </ul>
-                    </div>
-                    <div class="tier premium">
-                        <h3>Premium</h3>
-                        <ul>
-                            <li>1000 uploads per hour</li>
-                            <li>5000 uploads per day</li>
-                            <li>Premium file size limit</li>
-                            <li>Extended retention period</li>
-                        </ul>
-                    </div>
+                <h2>Usage Limits</h2>
+                <div class="limits">
+                    <h3>Free Usage</h3>
+                    <ul>
+                        <li>10 uploads per hour</li>
+                        <li>50 uploads per day</li>
+                        <li>Files up to 100 MB</li>
+                        <li>7 days retention</li>
+                    </ul>
                 </div>
             </section>
 
