@@ -55,11 +55,19 @@ wrangler d1 create dropx-db
 
 # Apply migrations
 wrangler d1 execute dropx-db --file=migrations/0001_initial.sql
+
+# Set admin token secret (production)
+wrangler secret put ADMIN_TOKEN
+# Enter your secure admin token when prompted
 ```
 
 ### Development
 
 ```bash
+# Create local secrets file (for development)
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars and set your ADMIN_TOKEN
+
 # Run locally
 wrangler dev
 
@@ -69,6 +77,8 @@ curl --upload-file test.txt http://localhost:8787/
 # Test download
 curl http://localhost:8787/abc123 -O
 ```
+
+**Note:** The `.dev.vars` file contains secrets for local development and is automatically ignored by git.
 
 ### Deployment
 
@@ -136,12 +146,38 @@ curl https://dropx.yourdomain.workers.dev/admin/stats \
 
 ## Configuration
 
+### Environment Variables (wrangler.toml)
+
 Edit `wrangler.toml` to customize:
 
-- `ADMIN_TOKEN` - Admin API authentication token
 - `MAX_FILE_SIZE_MB` - Maximum file size in megabytes
 - `DEFAULT_RETENTION_DAYS` - Default file retention period
-- Rate limit values for different tiers
+- `ANON_HOURLY_LIMIT` - Anonymous uploads per hour
+- `ANON_DAILY_LIMIT` - Anonymous uploads per day
+- `AUTHED_HOURLY_LIMIT` - Authenticated uploads per hour (with API key)
+- `AUTHED_DAILY_LIMIT` - Authenticated uploads per day (with API key)
+
+### Secrets
+
+Secrets are stored securely and not visible in configuration files:
+
+```bash
+# Set production secret
+wrangler secret put ADMIN_TOKEN
+
+# List all secrets
+wrangler secret list
+
+# Delete a secret
+wrangler secret delete ADMIN_TOKEN
+```
+
+For local development, create a `.dev.vars` file:
+
+```bash
+# .dev.vars (automatically gitignored)
+ADMIN_TOKEN=your-local-admin-token
+```
 
 ## Project Structure
 

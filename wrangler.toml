@@ -42,8 +42,10 @@ crons = ["0 2 * * *"]
 [vars]
 MAX_FILE_SIZE_MB = "100"
 DEFAULT_RETENTION_DAYS = "7"
-ADMIN_TOKEN = "change-me-in-production"
 ANON_HOURLY_LIMIT = "10"
 ANON_DAILY_LIMIT = "50"
 AUTHED_HOURLY_LIMIT = "100"
 AUTHED_DAILY_LIMIT = "500"
+
+# Secrets (set via: wrangler secret put ADMIN_TOKEN)
+# ADMIN_TOKEN - Admin API authentication token
