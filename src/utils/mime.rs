@@ -1,3 +1,5 @@
+use crate::utils::constants::MIN_MAGIC_BYTES_LENGTH;
+
 pub fn detect_mime_type(filename: &str, bytes: &[u8]) -> String {
     if let Some(mime) = detect_from_magic_bytes(bytes) {
         return mime;
@@ -7,7 +9,7 @@ pub fn detect_mime_type(filename: &str, bytes: &[u8]) -> String {
 }
 
 fn detect_from_magic_bytes(bytes: &[u8]) -> Option<String> {
-    if bytes.len() < 4 {
+    if bytes.len() < MIN_MAGIC_BYTES_LENGTH {
         return None;
     }
 

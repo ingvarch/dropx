@@ -1,6 +1,6 @@
 use worker::{Result, D1Database};
 use crate::models::{FileMetadata, ApiKey, ApiKeyTier};
-use crate::utils::constants::DB_NAME;
+use crate::utils::constants::{DB_NAME, DB_BOOL_TRUE, DB_BOOL_FALSE};
 use serde::Deserialize;
 
 pub struct DatabaseService;
@@ -133,7 +133,7 @@ impl DatabaseService {
             key.into(),
             email.map(|e| e.into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
             (created_at as f64).into(),
-            1f64.into(),
+            (DB_BOOL_TRUE as f64).into(),
             tier.as_str().into(),
         ])?.run().await?;
 
@@ -152,7 +152,7 @@ impl DatabaseService {
                     user_email: row.user_email,
                     created_at: row.created_at,
                     last_used_at: row.last_used_at,
-                    is_active: row.is_active == 1,
+                    is_active: row.is_active == DB_BOOL_TRUE,
                     tier: ApiKeyTier::from_str(&row.tier),
                 }))
             }
@@ -169,8 +169,8 @@ impl DatabaseService {
 
     pub async fn revoke_api_key(env: &worker::Env, key: &str) -> Result<bool> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("UPDATE api_keys SET is_active = 0 WHERE key = ?1");
-        statement.bind(&[key.into()])?.run().await?;
+        let statement = d1.prepare("UPDATE api_keys SET is_active = ?1 WHERE key = ?2");
+        statement.bind(&[(DB_BOOL_FALSE as f64).into(), key.into()])?.run().await?;
         Ok(true)
     }
 
@@ -203,7 +203,8 @@ impl DatabaseService {
             .and_then(|r| r.total)
             .unwrap_or(0);
 
-        let api_keys_count = d1.prepare("SELECT COUNT(*) as count FROM api_keys WHERE is_active = 1")
+        let api_keys_count = d1.prepare("SELECT COUNT(*) as count FROM api_keys WHERE is_active = ?1")
+            .bind(&[(DB_BOOL_TRUE as f64).into()])?
             .first::<CountResult>(None)
             .await?
             .map(|r| r.count)

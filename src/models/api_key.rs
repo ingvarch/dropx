@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
-use crate::utils::constants::{STANDARD_MAX_FILE_SIZE, PREMIUM_MAX_FILE_SIZE, STANDARD_RETENTION_DAYS, PREMIUM_RETENTION_DAYS};
+use crate::utils::constants::{
+    STANDARD_MAX_FILE_SIZE, PREMIUM_MAX_FILE_SIZE,
+    STANDARD_RETENTION_DAYS, PREMIUM_RETENTION_DAYS,
+    STANDARD_HOURLY_LIMIT, STANDARD_DAILY_LIMIT,
+    PREMIUM_HOURLY_LIMIT, PREMIUM_DAILY_LIMIT,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
@@ -21,15 +26,15 @@ pub enum ApiKeyTier {
 impl ApiKeyTier {
     pub fn hourly_limit(&self) -> usize {
         match self {
-            ApiKeyTier::Standard => 100,
-            ApiKeyTier::Premium => 1000,
+            ApiKeyTier::Standard => STANDARD_HOURLY_LIMIT,
+            ApiKeyTier::Premium => PREMIUM_HOURLY_LIMIT,
         }
     }
 
     pub fn daily_limit(&self) -> usize {
         match self {
-            ApiKeyTier::Standard => 500,
-            ApiKeyTier::Premium => 5000,
+            ApiKeyTier::Standard => STANDARD_DAILY_LIMIT,
+            ApiKeyTier::Premium => PREMIUM_DAILY_LIMIT,
         }
     }
 
@@ -94,5 +99,3 @@ pub struct ResetRateLimitResponse {
     pub user_id: String,
 }
 
-pub const ANON_HOURLY_LIMIT: usize = 10;
-pub const ANON_DAILY_LIMIT: usize = 50;

@@ -2,13 +2,17 @@ use worker::{Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService};
 use crate::utils::{generate_file_id, detect_mime_type, hash_identifier};
-use crate::utils::constants::{DEFAULT_RETENTION_DAYS, SECONDS_PER_DAY, DEFAULT_MAX_FILE_SIZE, BYTES_PER_MB, TRANSFER_BUCKET_NAME};
+use crate::utils::constants::{
+    STANDARD_RETENTION_DAYS, SECONDS_PER_DAY, STANDARD_MAX_FILE_SIZE, BYTES_PER_MB, TRANSFER_BUCKET_NAME,
+    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
+    ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
+};
 use crate::utils::response::unauthorized;
 
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
-    let api_key = req.headers().get("X-API-Key")?;
+    let api_key = req.headers().get(HEADER_API_KEY)?;
 
     let (user_id, tier) = if let Some(key) = &api_key {
         match DatabaseService::get_api_key(&env, key).await? {
@@ -18,19 +22,19 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
                 (key.clone(), Some(api_key_data.tier))
             }
             _ => {
-                return unauthorized("Invalid API key", "The provided API key is invalid or inactive");
+                return unauthorized(ERR_INVALID_API_KEY, "The provided API key is invalid or inactive");
             }
         }
     } else {
         let ip = req
             .headers()
-            .get("CF-Connecting-IP")?
-            .unwrap_or_else(|| "unknown".to_string());
+            .get(HEADER_CF_CONNECTING_IP)?
+            .unwrap_or_else(|| UNKNOWN_IP_ADDRESS.to_string());
         (hash_identifier(&ip), None)
     };
 
     if let Err(_) = RateLimiterService::check_limit(&env, &user_id, tier).await {
-        return Ok(Response::error("Rate limit exceeded", 429)?);
+        return Ok(Response::error(ERR_RATE_LIMIT_EXCEEDED, HTTP_TOO_MANY_REQUESTS)?);
     }
 
     let body = req.bytes().await?;
@@ -38,22 +42,22 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 
     let max_size = tier
         .map(|t| t.max_file_size())
-        .unwrap_or(DEFAULT_MAX_FILE_SIZE);
+        .unwrap_or(STANDARD_MAX_FILE_SIZE);
 
     if size > max_size {
         return Ok(Response::from_json(&FileSizeError {
-            error: "File too large".to_string(),
+            error: ERR_FILE_TOO_LARGE.to_string(),
             message: format!("Maximum file size is {} MB", max_size / BYTES_PER_MB),
             max_size,
         })?
-        .with_status(413));
+        .with_status(HTTP_PAYLOAD_TOO_LARGE));
     }
 
     let file_id = generate_file_id();
 
     let path = req.path();
     let filename = if path == "/" || path.is_empty() {
-        "file".to_string()
+        DEFAULT_FILENAME.to_string()
     } else {
         path.trim_start_matches('/').to_string()
     };
@@ -66,7 +70,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let now = chrono::Utc::now().timestamp();
     let retention_days = tier
         .map(|t| t.retention_days())
-        .unwrap_or(DEFAULT_RETENTION_DAYS);
+        .unwrap_or(STANDARD_RETENTION_DAYS);
     let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
     let file_metadata = FileMetadata {

@@ -1,10 +1,11 @@
 use base58::ToBase58;
 use uuid::Uuid;
+use crate::utils::constants::FILE_ID_UUID_BYTES;
 
 pub fn generate_file_id() -> String {
     let uuid = Uuid::new_v4();
     let bytes = uuid.as_bytes();
-    bytes[..8].to_base58()
+    bytes[..FILE_ID_UUID_BYTES].to_base58()
 }
 
 #[cfg(test)]

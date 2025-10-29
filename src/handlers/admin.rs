@@ -5,7 +5,10 @@ use crate::models::{
 use crate::services::DatabaseService;
 use crate::utils::auth::{generate_api_key, require_admin_token};
 use crate::utils::response::bad_request;
-use crate::utils::constants::RATE_LIMITER_NAME;
+use crate::utils::constants::{
+    RATE_LIMITER_NAME, HTTP_CREATED, HTTP_OK,
+    DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_RESET,
+};
 
 pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
@@ -43,7 +46,7 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
         },
     };
 
-    Ok(Response::from_json(&response)?.with_status(201))
+    Ok(Response::from_json(&response)?.with_status(HTTP_CREATED))
 }
 
 pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -98,11 +101,11 @@ pub async fn handle_reset_rate_limit(req: Request, ctx: RouteContext<()>) -> Res
     let namespace = ctx.env.durable_object(RATE_LIMITER_NAME)?;
     let stub = namespace.id_from_name(user_id)?.get_stub()?;
 
-    let reset_url = "http://rate-limiter/reset";
-    let reset_req = worker::Request::new(reset_url, worker::Method::Get)?;
+    let reset_url = format!("{}{}", DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_RESET);
+    let reset_req = worker::Request::new(&reset_url, worker::Method::Get)?;
     let response = stub.fetch_with_request(reset_req).await?;
 
-    if response.status_code() != 200 {
+    if response.status_code() != HTTP_OK {
         return Response::error("Failed to reset rate limit", response.status_code());
     }
 

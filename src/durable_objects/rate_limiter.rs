@@ -1,7 +1,11 @@
 use worker::*;
 use serde::{Deserialize, Serialize};
-use crate::utils::constants::{MILLIS_PER_HOUR, MILLIS_PER_DAY};
-use crate::models::api_key::{ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT};
+use crate::utils::constants::{
+    MILLIS_PER_HOUR, MILLIS_PER_DAY, MILLIS_PER_SECOND,
+    ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
+    DO_RATE_LIMITER_PATH_CHECK, DO_RATE_LIMITER_PATH_RESET,
+    HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HEADER_RETRY_AFTER,
+};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct RateLimitCounts {
@@ -42,19 +46,19 @@ impl DurableObject for RateLimiter {
             .unwrap_or(ANON_DAILY_LIMIT as u32);
 
         match url.path() {
-            "/check" => self.check_limit(hourly_limit, daily_limit).await,
-            "/reset" => self.reset_counters().await,
-            _ => Response::error("Not found", 404),
+            path if path == DO_RATE_LIMITER_PATH_CHECK => self.check_limit(hourly_limit, daily_limit).await,
+            path if path == DO_RATE_LIMITER_PATH_RESET => self.reset_counters().await,
+            _ => Response::error("Not found", HTTP_NOT_FOUND),
         }
     }
 }
 
 impl RateLimiter {
     fn rate_limit_response(message: &str, reset_at: u64, now: u64) -> Result<Response> {
-        let retry_after = ((reset_at - now) / 1000) as i64;
+        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
         let headers = Headers::new();
-        headers.set("Retry-After", &retry_after.to_string())?;
-        Ok(Response::error(message, 429)?.with_headers(headers))
+        headers.set(HEADER_RETRY_AFTER, &retry_after.to_string())?;
+        Ok(Response::error(message, HTTP_TOO_MANY_REQUESTS)?.with_headers(headers))
     }
 
     async fn check_limit(&self, hourly_limit: u32, daily_limit: u32) -> Result<Response> {

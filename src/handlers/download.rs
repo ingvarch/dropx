@@ -1,10 +1,13 @@
 use worker::{Request, Response, RouteContext, Result, Headers};
 use crate::services::{StorageService, DatabaseService};
-use crate::utils::response::{get_required_param, not_found, file_not_found};
-use crate::utils::constants::TRANSFER_BUCKET_NAME;
+use crate::utils::response::{get_file_id_param, not_found, file_not_found};
+use crate::utils::constants::{
+    TRANSFER_BUCKET_NAME, HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION,
+    HEADER_CONTENT_LENGTH, HEADER_DOWNLOAD_COUNT, HEADER_EXPIRES_AT,
+};
 
 pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let file_id = get_required_param(&ctx, "id", "File ID is required")?;
+    let file_id = get_file_id_param(&ctx)?;
 
     let file_metadata = match DatabaseService::get_file(&ctx.env, file_id).await? {
         Some(metadata) => metadata,
@@ -25,14 +28,14 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
     };
 
     let headers = Headers::new();
-    headers.set("Content-Type", &file_metadata.mime_type)?;
+    headers.set(HEADER_CONTENT_TYPE, &file_metadata.mime_type)?;
     headers.set(
-        "Content-Disposition",
+        HEADER_CONTENT_DISPOSITION,
         &format!("attachment; filename=\"{}\"", file_metadata.original_filename),
     )?;
-    headers.set("Content-Length", &file_metadata.size.to_string())?;
-    headers.set("X-Download-Count", &file_metadata.download_count.to_string())?;
-    headers.set("X-Expires-At", &file_metadata.expires_at.to_string())?;
+    headers.set(HEADER_CONTENT_LENGTH, &file_metadata.size.to_string())?;
+    headers.set(HEADER_DOWNLOAD_COUNT, &file_metadata.download_count.to_string())?;
+    headers.set(HEADER_EXPIRES_AT, &file_metadata.expires_at.to_string())?;
 
     Ok(Response::from_bytes(file_data)?.with_headers(headers))
 }

@@ -1,6 +1,10 @@
 use worker::{Env, Result};
-use crate::models::api_key::{ApiKeyTier, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT};
-use crate::utils::constants::RATE_LIMITER_NAME;
+use crate::models::api_key::ApiKeyTier;
+use crate::utils::constants::{
+    RATE_LIMITER_NAME, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
+    DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK,
+    HTTP_TOO_MANY_REQUESTS, ERR_RATE_LIMIT_EXCEEDED,
+};
 
 pub struct RateLimiterService;
 
@@ -19,15 +23,16 @@ impl RateLimiterService {
         };
 
         let url = format!(
-            "http://rate-limiter/check?hourly={}&daily={}",
+            "{}{}?hourly={}&daily={}",
+            DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK,
             hourly_limit, daily_limit
         );
 
         let req = worker::Request::new(&url, worker::Method::Get)?;
         let response = stub.fetch_with_request(req).await?;
 
-        if response.status_code() == 429 {
-            return Err(worker::Error::RustError("Rate limit exceeded".to_string()));
+        if response.status_code() == HTTP_TOO_MANY_REQUESTS {
+            return Err(worker::Error::RustError(ERR_RATE_LIMIT_EXCEEDED.to_string()));
         }
 
         Ok(())
