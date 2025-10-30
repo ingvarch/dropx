@@ -38,14 +38,5 @@ new_sqlite_classes = ["RateLimiter"]
 [triggers]
 crons = ["0 2 * * *"]
 
-# Environment Variables
-[vars]
-MAX_FILE_SIZE_MB = "25"
-DEFAULT_RETENTION_DAYS = "3"
-ANON_HOURLY_LIMIT = "10"
-ANON_DAILY_LIMIT = "25"
-AUTHED_HOURLY_LIMIT = "100"
-AUTHED_DAILY_LIMIT = "500"
-
 # Secrets (set via: wrangler secret put ADMIN_TOKEN)
 # ADMIN_TOKEN - Admin API authentication token

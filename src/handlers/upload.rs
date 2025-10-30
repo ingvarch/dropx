@@ -3,7 +3,8 @@ use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService};
 use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, hash_identifier, current_timestamp};
 use crate::utils::constants::{
-    STANDARD_RETENTION_DAYS, SECONDS_PER_DAY, STANDARD_MAX_FILE_SIZE, BYTES_PER_MB,
+    ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
+    SECONDS_PER_DAY, BYTES_PER_MB,
     HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
@@ -42,7 +43,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 
     let max_size = tier
         .map(|t| t.max_file_size())
-        .unwrap_or(STANDARD_MAX_FILE_SIZE);
+        .unwrap_or(ANON_MAX_FILE_SIZE);
 
     if size > max_size {
         return Ok(Response::from_json(&FileSizeError {
@@ -71,7 +72,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let now = current_timestamp();
     let retention_days = tier
         .map(|t| t.retention_days())
-        .unwrap_or(STANDARD_RETENTION_DAYS);
+        .unwrap_or(ANON_RETENTION_DAYS);
     let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
     let max_downloads = req.headers()
@@ -120,6 +121,7 @@ mod tests {
     use super::*;
     use crate::models::api_key::ApiKeyTier;
     use crate::utils::constants::{
+        ANON_MAX_FILE_SIZE, ANON_RETENTION_DAYS,
         PREMIUM_MAX_FILE_SIZE, PREMIUM_RETENTION_DAYS,
         STANDARD_MAX_FILE_SIZE, STANDARD_RETENTION_DAYS,
     };
@@ -141,8 +143,8 @@ mod tests {
     #[test]
     fn test_max_file_size_anon() {
         let tier: Option<ApiKeyTier> = None;
-        let max_size = tier.map(|t| t.max_file_size()).unwrap_or(STANDARD_MAX_FILE_SIZE);
-        assert_eq!(max_size, 100 * 1024 * 1024);
+        let max_size = tier.map(|t| t.max_file_size()).unwrap_or(ANON_MAX_FILE_SIZE);
+        assert_eq!(max_size, 25 * 1024 * 1024);
     }
 
     #[test]
@@ -162,8 +164,8 @@ mod tests {
     #[test]
     fn test_retention_days_anon() {
         let tier: Option<ApiKeyTier> = None;
-        let retention = tier.map(|t| t.retention_days()).unwrap_or(STANDARD_RETENTION_DAYS);
-        assert_eq!(retention, 7);
+        let retention = tier.map(|t| t.retention_days()).unwrap_or(ANON_RETENTION_DAYS);
+        assert_eq!(retention, 3);
     }
 
     #[test]
@@ -227,21 +229,42 @@ mod tests {
     }
 
     #[test]
-    fn test_size_validation_under_limit() {
+    fn test_size_validation_anon_under_limit() {
+        let size = 20 * 1024 * 1024;
+        let max_size = ANON_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_anon_at_limit() {
+        let size = 25 * 1024 * 1024;
+        let max_size = ANON_MAX_FILE_SIZE;
+        assert!(size <= max_size);
+    }
+
+    #[test]
+    fn test_size_validation_anon_over_limit() {
+        let size = 30 * 1024 * 1024;
+        let max_size = ANON_MAX_FILE_SIZE;
+        assert!(size > max_size);
+    }
+
+    #[test]
+    fn test_size_validation_standard_under_limit() {
         let size = 50 * 1024 * 1024;
         let max_size = STANDARD_MAX_FILE_SIZE;
         assert!(size <= max_size);
     }
 
     #[test]
-    fn test_size_validation_at_limit() {
+    fn test_size_validation_standard_at_limit() {
         let size = 100 * 1024 * 1024;
         let max_size = STANDARD_MAX_FILE_SIZE;
         assert!(size <= max_size);
     }
 
     #[test]
-    fn test_size_validation_over_limit() {
+    fn test_size_validation_standard_over_limit() {
         let size = 150 * 1024 * 1024;
         let max_size = STANDARD_MAX_FILE_SIZE;
         assert!(size > max_size);
@@ -266,6 +289,13 @@ mod tests {
         let size = 600 * 1024 * 1024;
         let max_size = PREMIUM_MAX_FILE_SIZE;
         assert!(size > max_size);
+    }
+
+    #[test]
+    fn test_expires_in_format_anon() {
+        let retention_days = ANON_RETENTION_DAYS;
+        let expires_in = format!("{}d", retention_days);
+        assert_eq!(expires_in, "3d");
     }
 
     #[test]

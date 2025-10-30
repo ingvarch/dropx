@@ -178,10 +178,10 @@ mod tests {
     #[test]
     fn test_daily_limit_check_anon() {
         let daily_limit = ANON_DAILY_LIMIT as u32;
-        let count = 49u32;
+        let count = 24u32;
         assert!(count < daily_limit);
 
-        let count = 50u32;
+        let count = 25u32;
         assert!(count >= daily_limit);
     }
 

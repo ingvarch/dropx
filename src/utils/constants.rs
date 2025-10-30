@@ -1,9 +1,11 @@
 pub const BYTES_PER_KB: usize = 1024;
 pub const BYTES_PER_MB: usize = 1024 * BYTES_PER_KB;
 
+pub const ANON_MAX_FILE_SIZE: usize = 25 * BYTES_PER_MB;
 pub const STANDARD_MAX_FILE_SIZE: usize = 100 * BYTES_PER_MB;
 pub const PREMIUM_MAX_FILE_SIZE: usize = 500 * BYTES_PER_MB;
 
+pub const ANON_RETENTION_DAYS: i64 = 3;
 pub const STANDARD_RETENTION_DAYS: i64 = 7;
 pub const PREMIUM_RETENTION_DAYS: i64 = 30;
 
@@ -18,7 +20,7 @@ pub const DB_NAME: &str = "DB";
 pub const RATE_LIMITER_NAME: &str = "RATE_LIMITER";
 
 pub const ANON_HOURLY_LIMIT: usize = 10;
-pub const ANON_DAILY_LIMIT: usize = 50;
+pub const ANON_DAILY_LIMIT: usize = 25;
 pub const STANDARD_HOURLY_LIMIT: usize = 100;
 pub const STANDARD_DAILY_LIMIT: usize = 500;
 pub const PREMIUM_HOURLY_LIMIT: usize = 1000;
@@ -76,6 +78,9 @@ mod tests {
 
     #[test]
     fn test_file_size_limits_correct_values() {
+        assert_eq!(ANON_MAX_FILE_SIZE, 25 * 1024 * 1024);
+        assert_eq!(ANON_MAX_FILE_SIZE, 26_214_400);
+
         assert_eq!(STANDARD_MAX_FILE_SIZE, 100 * 1024 * 1024);
         assert_eq!(STANDARD_MAX_FILE_SIZE, 104_857_600);
 
@@ -85,18 +90,22 @@ mod tests {
 
     #[test]
     fn test_file_size_limits_relationship() {
+        assert!(STANDARD_MAX_FILE_SIZE > ANON_MAX_FILE_SIZE);
         assert!(PREMIUM_MAX_FILE_SIZE > STANDARD_MAX_FILE_SIZE);
+        assert_eq!(STANDARD_MAX_FILE_SIZE, ANON_MAX_FILE_SIZE * 4);
         assert_eq!(PREMIUM_MAX_FILE_SIZE, STANDARD_MAX_FILE_SIZE * 5);
     }
 
     #[test]
     fn test_retention_days_constants() {
+        assert_eq!(ANON_RETENTION_DAYS, 3);
         assert_eq!(STANDARD_RETENTION_DAYS, 7);
         assert_eq!(PREMIUM_RETENTION_DAYS, 30);
     }
 
     #[test]
     fn test_retention_days_relationship() {
+        assert!(STANDARD_RETENTION_DAYS > ANON_RETENTION_DAYS);
         assert!(PREMIUM_RETENTION_DAYS > STANDARD_RETENTION_DAYS);
     }
 
@@ -121,7 +130,7 @@ mod tests {
     #[test]
     fn test_rate_limits_anonymous() {
         assert_eq!(ANON_HOURLY_LIMIT, 10);
-        assert_eq!(ANON_DAILY_LIMIT, 50);
+        assert_eq!(ANON_DAILY_LIMIT, 25);
         assert!(ANON_DAILY_LIMIT > ANON_HOURLY_LIMIT);
     }
 
@@ -153,7 +162,7 @@ mod tests {
         assert_eq!(STANDARD_HOURLY_LIMIT, ANON_HOURLY_LIMIT * 10);
         assert_eq!(PREMIUM_HOURLY_LIMIT, STANDARD_HOURLY_LIMIT * 10);
 
-        assert_eq!(STANDARD_DAILY_LIMIT, ANON_DAILY_LIMIT * 10);
+        assert_eq!(STANDARD_DAILY_LIMIT, ANON_DAILY_LIMIT * 20);
         assert_eq!(PREMIUM_DAILY_LIMIT, STANDARD_DAILY_LIMIT * 10);
     }
 

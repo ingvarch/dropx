@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn test_build_check_url_anon() {
         let url = RateLimiterService::build_check_url(ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT);
-        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=50");
+        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=25");
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod tests {
     fn test_tier_limits_none() {
         let (hourly, daily) = (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT);
         assert_eq!(hourly, 10);
-        assert_eq!(daily, 50);
+        assert_eq!(daily, 25);
     }
 
     #[test]
@@ -153,6 +153,6 @@ mod tests {
             None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
         };
         let url = RateLimiterService::build_check_url(hourly, daily);
-        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=50");
+        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=25");
     }
 }

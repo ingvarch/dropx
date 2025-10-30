@@ -1,7 +1,8 @@
-const ANON_HOURLY_LIMIT: &str = env!("ANON_HOURLY_LIMIT");
-const ANON_DAILY_LIMIT: &str = env!("ANON_DAILY_LIMIT");
-const MAX_FILE_SIZE_MB: &str = env!("MAX_FILE_SIZE_MB");
-const DEFAULT_RETENTION_DAYS: &str = env!("DEFAULT_RETENTION_DAYS");
+use crate::utils::constants::{
+    ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
+    ANON_MAX_FILE_SIZE, ANON_RETENTION_DAYS,
+    BYTES_PER_MB,
+};
 
 /// Renders the landing page HTML template with dynamic values.
 ///
@@ -16,13 +17,15 @@ pub fn render_landing_page(hostname: &str) -> String {
     const TEMPLATE: &str = include_str!("../templates/index.html");
     const STYLES: &str = include_str!("../templates/styles.css");
 
+    let max_file_size_mb = ANON_MAX_FILE_SIZE / BYTES_PER_MB;
+
     TEMPLATE
         .replace("{{STYLES}}", STYLES)
         .replace("{{HOSTNAME}}", hostname)
-        .replace("{{HOURLY_LIMIT}}", ANON_HOURLY_LIMIT)
-        .replace("{{DAILY_LIMIT}}", ANON_DAILY_LIMIT)
-        .replace("{{MAX_FILE_SIZE}}", MAX_FILE_SIZE_MB)
-        .replace("{{RETENTION_DAYS}}", DEFAULT_RETENTION_DAYS)
+        .replace("{{HOURLY_LIMIT}}", &ANON_HOURLY_LIMIT.to_string())
+        .replace("{{DAILY_LIMIT}}", &ANON_DAILY_LIMIT.to_string())
+        .replace("{{MAX_FILE_SIZE}}", &max_file_size_mb.to_string())
+        .replace("{{RETENTION_DAYS}}", &ANON_RETENTION_DAYS.to_string())
 }
 
 #[cfg(test)]
@@ -55,10 +58,12 @@ mod tests {
         assert!(!result.contains("{{MAX_FILE_SIZE}}"), "MAX_FILE_SIZE placeholder should be replaced");
         assert!(!result.contains("{{RETENTION_DAYS}}"), "RETENTION_DAYS placeholder should be replaced");
 
+        let max_file_size_mb = ANON_MAX_FILE_SIZE / BYTES_PER_MB;
+
         assert!(result.contains(&format!("{} uploads per hour", ANON_HOURLY_LIMIT)));
         assert!(result.contains(&format!("{} uploads per day", ANON_DAILY_LIMIT)));
-        assert!(result.contains(&format!("Files up to {} MB", MAX_FILE_SIZE_MB)));
-        assert!(result.contains(&format!("{} days retention", DEFAULT_RETENTION_DAYS)));
+        assert!(result.contains(&format!("Files up to {} MB", max_file_size_mb)));
+        assert!(result.contains(&format!("{} days retention", ANON_RETENTION_DAYS)));
 
         assert!(result.contains(".hero"), "Styles should be inlined");
         assert!(result.contains("--primary"), "CSS variables should be present");
