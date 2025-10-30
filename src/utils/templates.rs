@@ -6,6 +6,7 @@ const DEFAULT_RETENTION_DAYS: &str = env!("DEFAULT_RETENTION_DAYS");
 /// Renders the landing page HTML template with dynamic values.
 ///
 /// Replaces template placeholders with actual values:
+/// - {{STYLES}} - Inlined CSS from styles.css
 /// - {{HOSTNAME}} - The domain/hostname of the service
 /// - {{HOURLY_LIMIT}} - Anonymous hourly upload limit
 /// - {{DAILY_LIMIT}} - Anonymous daily upload limit
@@ -13,8 +14,10 @@ const DEFAULT_RETENTION_DAYS: &str = env!("DEFAULT_RETENTION_DAYS");
 /// - {{RETENTION_DAYS}} - Default retention period in days
 pub fn render_landing_page(hostname: &str) -> String {
     const TEMPLATE: &str = include_str!("../templates/index.html");
+    const STYLES: &str = include_str!("../templates/styles.css");
 
     TEMPLATE
+        .replace("{{STYLES}}", STYLES)
         .replace("{{HOSTNAME}}", hostname)
         .replace("{{HOURLY_LIMIT}}", ANON_HOURLY_LIMIT)
         .replace("{{DAILY_LIMIT}}", ANON_DAILY_LIMIT)
@@ -45,6 +48,7 @@ mod tests {
     fn test_render_landing_page_replaces_all_placeholders() {
         let result = render_landing_page("https://dropx.click");
 
+        assert!(!result.contains("{{STYLES}}"), "STYLES placeholder should be replaced");
         assert!(!result.contains("{{HOSTNAME}}"), "HOSTNAME placeholder should be replaced");
         assert!(!result.contains("{{HOURLY_LIMIT}}"), "HOURLY_LIMIT placeholder should be replaced");
         assert!(!result.contains("{{DAILY_LIMIT}}"), "DAILY_LIMIT placeholder should be replaced");
@@ -55,5 +59,8 @@ mod tests {
         assert!(result.contains(&format!("{} uploads per day", ANON_DAILY_LIMIT)));
         assert!(result.contains(&format!("Files up to {} MB", MAX_FILE_SIZE_MB)));
         assert!(result.contains(&format!("{} days retention", DEFAULT_RETENTION_DAYS)));
+
+        assert!(result.contains(".hero"), "Styles should be inlined");
+        assert!(result.contains("--primary"), "CSS variables should be present");
     }
 }
