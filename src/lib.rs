@@ -18,6 +18,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/", handlers::handle_landing)
         .post_async("/", handlers::handle_upload)
         .put_async("/:filename", handlers::handle_upload)
+        .get_async("/get/:id", handlers::handle_get)
+        .get_async("/inline/:id", handlers::handle_inline)
         .get_async("/:id/info", handlers::handle_info)
         .delete_async("/:id/:token", handlers::handle_delete)
         .get_async("/:id", handlers::handle_download)
@@ -44,6 +46,8 @@ mod tests {
         let routes = vec![
             "/",
             "/:filename",
+            "/get/:id",
+            "/inline/:id",
             "/:id/info",
             "/:id/:token",
             "/:id",
@@ -161,6 +165,8 @@ mod tests {
             ("GET", "/"),
             ("POST", "/"),
             ("PUT", "/:filename"),
+            ("GET", "/get/:id"),
+            ("GET", "/inline/:id"),
             ("GET", "/:id/info"),
             ("DELETE", "/:id/:token"),
             ("GET", "/:id"),
@@ -170,14 +176,14 @@ mod tests {
             ("POST", "/admin/rate-limit/reset/:user_id"),
         ];
 
-        assert_eq!(routes.len(), 10);
+        assert_eq!(routes.len(), 12);
 
         let get_count = routes.iter().filter(|(m, _)| *m == "GET").count();
         let post_count = routes.iter().filter(|(m, _)| *m == "POST").count();
         let put_count = routes.iter().filter(|(m, _)| *m == "PUT").count();
         let delete_count = routes.iter().filter(|(m, _)| *m == "DELETE").count();
 
-        assert_eq!(get_count, 4);
+        assert_eq!(get_count, 6);
         assert_eq!(post_count, 3);
         assert_eq!(put_count, 1);
         assert_eq!(delete_count, 2);
@@ -206,6 +212,8 @@ mod tests {
             ("GET", "/"),
             ("POST", "/"),
             ("PUT", "/:filename"),
+            ("GET", "/get/:id"),
+            ("GET", "/inline/:id"),
             ("GET", "/:id/info"),
             ("DELETE", "/:id/:token"),
             ("GET", "/:id"),
@@ -236,12 +244,14 @@ mod tests {
         let public_routes = vec![
             "/",
             "/:filename",
+            "/get/:id",
+            "/inline/:id",
             "/:id/info",
             "/:id/:token",
             "/:id",
         ];
 
-        assert_eq!(public_routes.len(), 5);
+        assert_eq!(public_routes.len(), 7);
     }
 
     #[test]

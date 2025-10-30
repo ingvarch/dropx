@@ -289,4 +289,50 @@ mod tests {
         let url = format!("https://{}/{}", host, file_id);
         assert_eq!(url, "https://example.com/abc123");
     }
+
+    #[test]
+    fn test_max_downloads_header_parsing_valid() {
+        let max_downloads_str = "5";
+        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
+        assert_eq!(parsed, Some(5));
+    }
+
+    #[test]
+    fn test_max_downloads_header_parsing_zero() {
+        let max_downloads_str = "0";
+        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn test_max_downloads_header_parsing_negative() {
+        let max_downloads_str = "-1";
+        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn test_max_downloads_header_parsing_invalid() {
+        let max_downloads_str = "invalid";
+        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn test_max_downloads_one_time_link() {
+        let max_downloads = Some(1);
+        assert_eq!(max_downloads, Some(1));
+    }
+
+    #[test]
+    fn test_max_downloads_unlimited() {
+        let max_downloads: Option<i32> = None;
+        assert_eq!(max_downloads, None);
+    }
+
+    #[test]
+    fn test_max_downloads_large_value() {
+        let max_downloads = Some(1000000);
+        assert_eq!(max_downloads, Some(1000000));
+    }
 }

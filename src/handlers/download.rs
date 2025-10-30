@@ -1,6 +1,7 @@
 use worker::{Request, Response, RouteContext, Result, Headers, console_log};
 use crate::services::{StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
+use crate::utils::content_disposition::{get_content_disposition, DispositionType};
 use crate::utils::constants::{
     HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION,
     HEADER_CONTENT_LENGTH, HEADER_DOWNLOAD_COUNT, HEADER_EXPIRES_AT,
@@ -45,7 +46,11 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
     headers.set(HEADER_CONTENT_TYPE, &file_metadata.mime_type)?;
     headers.set(
         HEADER_CONTENT_DISPOSITION,
-        &format!("attachment; filename=\"{}\"", file_metadata.original_filename),
+        &get_content_disposition(
+            &file_metadata.original_filename,
+            DispositionType::Auto,
+            &file_metadata.mime_type,
+        ),
     )?;
     headers.set(HEADER_CONTENT_LENGTH, &file_metadata.size.to_string())?;
     headers.set(HEADER_DOWNLOAD_COUNT, &file_metadata.download_count.to_string())?;
@@ -56,33 +61,30 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
-    fn test_content_disposition_simple_filename() {
-        let filename = "document.pdf";
-        let header = format!("attachment; filename=\"{}\"", filename);
-        assert_eq!(header, "attachment; filename=\"document.pdf\"");
+    fn test_content_disposition_auto_pdf() {
+        let disposition = get_content_disposition("document.pdf", DispositionType::Auto, "application/pdf");
+        assert_eq!(disposition, "inline; filename=\"document.pdf\"");
     }
 
     #[test]
-    fn test_content_disposition_filename_with_spaces() {
-        let filename = "my document.pdf";
-        let header = format!("attachment; filename=\"{}\"", filename);
-        assert_eq!(header, "attachment; filename=\"my document.pdf\"");
+    fn test_content_disposition_auto_image() {
+        let disposition = get_content_disposition("photo.jpg", DispositionType::Auto, "image/jpeg");
+        assert_eq!(disposition, "inline; filename=\"photo.jpg\"");
     }
 
     #[test]
-    fn test_content_disposition_filename_with_special_chars() {
-        let filename = "report-2024.pdf";
-        let header = format!("attachment; filename=\"{}\"", filename);
-        assert_eq!(header, "attachment; filename=\"report-2024.pdf\"");
+    fn test_content_disposition_auto_zip() {
+        let disposition = get_content_disposition("archive.zip", DispositionType::Auto, "application/zip");
+        assert_eq!(disposition, "attachment; filename=\"archive.zip\"");
     }
 
     #[test]
-    fn test_content_disposition_filename_with_unicode() {
-        let filename = "документ.pdf";
-        let header = format!("attachment; filename=\"{}\"", filename);
-        assert_eq!(header, "attachment; filename=\"документ.pdf\"");
+    fn test_content_disposition_auto_text() {
+        let disposition = get_content_disposition("notes.txt", DispositionType::Auto, "text/plain");
+        assert_eq!(disposition, "inline; filename=\"notes.txt\"");
     }
 
     #[test]
@@ -146,5 +148,58 @@ mod tests {
 
         assert!(in_database);
         assert!(!in_storage);
+    }
+
+    #[test]
+    fn test_max_downloads_limit_reached() {
+        let max_downloads = Some(5);
+        let current_count = 4;
+        let new_count = current_count + 1;
+
+        assert!(new_count >= max_downloads.unwrap());
+    }
+
+    #[test]
+    fn test_max_downloads_limit_not_reached() {
+        let max_downloads = Some(5);
+        let current_count = 3;
+        let new_count = current_count + 1;
+
+        assert!(new_count < max_downloads.unwrap());
+    }
+
+    #[test]
+    fn test_max_downloads_one_time_link() {
+        let max_downloads = Some(1);
+        let current_count = 0;
+        let new_count = current_count + 1;
+
+        assert_eq!(new_count, max_downloads.unwrap());
+    }
+
+    #[test]
+    fn test_max_downloads_none_unlimited() {
+        let max_downloads: Option<i32> = None;
+        assert!(max_downloads.is_none());
+    }
+
+    #[test]
+    fn test_max_downloads_deletion_logic() {
+        let max_downloads = Some(3);
+        let download_count = 2;
+        let new_download_count = download_count + 1;
+
+        let should_delete = new_download_count >= max_downloads.unwrap();
+        assert!(should_delete);
+    }
+
+    #[test]
+    fn test_max_downloads_keep_file_logic() {
+        let max_downloads = Some(10);
+        let download_count = 5;
+        let new_download_count = download_count + 1;
+
+        let should_delete = new_download_count >= max_downloads.unwrap();
+        assert!(!should_delete);
     }
 }

@@ -5,6 +5,7 @@ pub mod response;
 pub mod constants;
 pub mod time;
 pub mod content_negotiation;
+pub mod content_disposition;
 pub mod templates;
 pub mod validation;
 pub mod storage_path;
