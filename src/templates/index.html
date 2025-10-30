@@ -367,7 +367,27 @@
             // Attach click handlers to all copy buttons
             document.querySelectorAll('.copy-btn').forEach(function(button) {
                 button.addEventListener('click', function() {
-                    const text = this.getAttribute('data-copy-text');
+                    // Find the code element in the same block
+                    const codeBlock = this.closest('.code-block, .code-example');
+                    const codeElement = codeBlock ? codeBlock.querySelector('code') : null;
+
+                    let text = '';
+                    if (codeElement) {
+                        // Get text from code element and convert <br> to newlines
+                        text = codeElement.innerHTML
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<[^>]+>/g, '')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&amp;/g, '&')
+                            .replace(/&quot;/g, '"');
+                    } else {
+                        // Fallback to data-copy-text attribute
+                        text = this.getAttribute('data-copy-text') || '';
+                        // Replace literal \n with actual newlines
+                        text = text.replace(/\\n/g, '\n');
+                    }
+
                     if (!text) return;
 
                     navigator.clipboard.writeText(text).then(function() {
