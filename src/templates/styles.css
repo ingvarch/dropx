@@ -62,7 +62,7 @@ body {
 .hero-content {
     position: relative;
     z-index: 10;
-    text-center;
+    text-align: center;
     max-width: 900px;
 }
 
@@ -403,9 +403,12 @@ section h2 {
     content: "•";
     position: absolute;
     left: 0;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--primary);
     font-weight: bold;
     font-size: 1.5rem;
+    line-height: 1;
 }
 
 /* Footer */
