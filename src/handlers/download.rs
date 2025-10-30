@@ -15,22 +15,6 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
         None => return file_not_found(),
     };
 
-    let _ = DatabaseService::increment_download_count(&ctx.env, file_id).await;
-
-    if let Some(max_downloads) = file_metadata.max_downloads {
-        let new_download_count = file_metadata.download_count + 1;
-        if new_download_count >= max_downloads {
-            let bucket = StorageService::get_bucket(&ctx.env)?;
-            if let Err(e) = StorageService::delete_file(&bucket, file_id).await {
-                console_log!("Failed to delete file from R2 after max downloads: {:?}", e);
-            }
-
-            if let Err(e) = DatabaseService::delete_file(&ctx.env, file_id, &file_metadata.delete_token).await {
-                console_log!("Failed to delete file from database after max downloads: {:?}", e);
-            }
-        }
-    }
-
     let bucket = StorageService::get_bucket(&ctx.env)?;
     let file_data = match StorageService::download_file(&bucket, file_id).await? {
         Some(data) => data,
@@ -41,6 +25,21 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
             );
         }
     };
+
+    let _ = DatabaseService::increment_download_count(&ctx.env, file_id).await;
+
+    if let Some(max_downloads) = file_metadata.max_downloads {
+        let new_download_count = file_metadata.download_count + 1;
+        if new_download_count >= max_downloads {
+            if let Err(e) = StorageService::delete_file(&bucket, file_id).await {
+                console_log!("Failed to delete file from R2 after max downloads: {:?}", e);
+            }
+
+            if let Err(e) = DatabaseService::delete_file(&ctx.env, file_id, &file_metadata.delete_token).await {
+                console_log!("Failed to delete file from database after max downloads: {:?}", e);
+            }
+        }
+    }
 
     let headers = Headers::new();
     headers.set(HEADER_CONTENT_TYPE, &file_metadata.mime_type)?;
