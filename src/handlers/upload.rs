@@ -5,8 +5,10 @@ use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, ha
 use crate::utils::constants::{
     ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
-    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
-    ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
+    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
+    HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE, HTTP_BAD_REQUEST,
+    ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, ERR_INVALID_RETENTION,
+    UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
 use crate::utils::response::unauthorized;
 
@@ -70,15 +72,45 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     StorageService::upload_file(&bucket, &file_id, body).await?;
 
     let now = current_timestamp();
-    let retention_days = tier
-        .map(|t| t.retention_days())
-        .unwrap_or(ANON_RETENTION_DAYS);
-    let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
     let max_downloads = req.headers()
         .get(HEADER_MAX_DOWNLOADS)?
         .and_then(|v| v.parse::<i32>().ok())
         .filter(|&v| v > 0);
+
+    let default_retention_days = tier
+        .map(|t| t.retention_days())
+        .unwrap_or(ANON_RETENTION_DAYS);
+
+    let max_allowed_retention = default_retention_days;
+
+    let requested_retention = req.headers()
+        .get(HEADER_MAX_AGE_DAYS)?
+        .and_then(|v| v.parse::<i64>().ok());
+
+    let retention_days = if let Some(requested) = requested_retention {
+        if requested <= 0 {
+            return Ok(Response::from_json(&serde_json::json!({
+                "error": ERR_INVALID_RETENTION,
+                "message": "Retention period must be at least 1 day"
+            }))?
+            .with_status(HTTP_BAD_REQUEST));
+        }
+
+        if requested > max_allowed_retention {
+            return Ok(Response::from_json(&serde_json::json!({
+                "error": ERR_INVALID_RETENTION,
+                "message": format!("Retention period cannot exceed {} days for your tier", max_allowed_retention)
+            }))?
+            .with_status(HTTP_BAD_REQUEST));
+        }
+
+        requested
+    } else {
+        default_retention_days
+    };
+
+    let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
     let file_metadata = FileMetadata {
         id: file_id.clone(),
@@ -364,5 +396,120 @@ mod tests {
     fn test_max_downloads_large_value() {
         let max_downloads = Some(1000000);
         assert_eq!(max_downloads, Some(1000000));
+    }
+
+    #[test]
+    fn test_max_age_days_parsing_valid() {
+        let max_age_str = "5";
+        let parsed = max_age_str.parse::<i64>().ok();
+        assert_eq!(parsed, Some(5));
+    }
+
+    #[test]
+    fn test_max_age_days_parsing_zero() {
+        let max_age_str = "0";
+        let parsed = max_age_str.parse::<i64>().ok();
+        assert_eq!(parsed, Some(0));
+    }
+
+    #[test]
+    fn test_max_age_days_parsing_negative() {
+        let max_age_str = "-1";
+        let parsed = max_age_str.parse::<i64>().ok();
+        assert_eq!(parsed, Some(-1));
+    }
+
+    #[test]
+    fn test_max_age_days_parsing_invalid() {
+        let max_age_str = "invalid";
+        let parsed = max_age_str.parse::<i64>().ok();
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn test_max_age_days_anon_within_limit() {
+        let requested = 1;
+        let max_allowed = ANON_RETENTION_DAYS;
+        assert!(requested > 0);
+        assert!(requested <= max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_anon_at_limit() {
+        let requested = 3;
+        let max_allowed = ANON_RETENTION_DAYS;
+        assert!(requested > 0);
+        assert!(requested <= max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_anon_exceeds_limit() {
+        let requested = 5;
+        let max_allowed = ANON_RETENTION_DAYS;
+        assert!(requested > max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_standard_within_limit() {
+        let requested = 5;
+        let max_allowed = STANDARD_RETENTION_DAYS;
+        assert!(requested > 0);
+        assert!(requested <= max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_standard_exceeds_limit() {
+        let requested = 10;
+        let max_allowed = STANDARD_RETENTION_DAYS;
+        assert!(requested > max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_premium_within_limit() {
+        let requested = 15;
+        let max_allowed = PREMIUM_RETENTION_DAYS;
+        assert!(requested > 0);
+        assert!(requested <= max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_premium_exceeds_limit() {
+        let requested = 50;
+        let max_allowed = PREMIUM_RETENTION_DAYS;
+        assert!(requested > max_allowed);
+    }
+
+    #[test]
+    fn test_max_age_days_with_max_downloads() {
+        let max_downloads = Some(5);
+        let retention_days: i64 = 1;
+        assert_eq!(max_downloads, Some(5));
+        assert_eq!(retention_days, 1);
+    }
+
+    #[test]
+    fn test_expires_at_with_custom_retention() {
+        let now: i64 = 1000000;
+        let retention_days: i64 = 1;
+        let expires_at = now + (retention_days * SECONDS_PER_DAY);
+        assert_eq!(expires_at, 1000000 + 86400);
+    }
+
+    #[test]
+    fn test_retention_validation_positive() {
+        let requested: i64 = 5;
+        assert!(requested > 0);
+    }
+
+    #[test]
+    fn test_retention_validation_zero() {
+        let requested: i64 = 0;
+        assert!(requested <= 0);
+    }
+
+    #[test]
+    fn test_retention_validation_negative() {
+        let requested: i64 = -1;
+        assert!(requested <= 0);
     }
 }

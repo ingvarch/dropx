@@ -48,6 +48,7 @@ pub const HEADER_RETRY_AFTER: &str = "Retry-After";
 pub const HEADER_DOWNLOAD_COUNT: &str = "X-Download-Count";
 pub const HEADER_EXPIRES_AT: &str = "X-Expires-At";
 pub const HEADER_MAX_DOWNLOADS: &str = "Max-Downloads";
+pub const HEADER_MAX_AGE_DAYS: &str = "Max-Age-Days";
 
 pub const DO_RATE_LIMITER_BASE_URL: &str = "http://rate-limiter";
 pub const DO_RATE_LIMITER_PATH_CHECK: &str = "/check";
@@ -61,6 +62,7 @@ pub const ERR_FILE_NOT_FOUND: &str = "File not found";
 pub const ERR_INVALID_API_KEY: &str = "Invalid API key";
 pub const ERR_FILE_TOO_LARGE: &str = "File too large";
 pub const ERR_FILE_ID_REQUIRED: &str = "File ID is required";
+pub const ERR_INVALID_RETENTION: &str = "Invalid retention period";
 
 pub const UNKNOWN_IP_ADDRESS: &str = "unknown";
 pub const DEFAULT_FILENAME: &str = "file";
