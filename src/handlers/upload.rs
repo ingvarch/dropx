@@ -1,10 +1,10 @@
 use worker::{Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService};
-use crate::utils::{generate_file_id, detect_mime_type, hash_identifier, current_timestamp};
+use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, hash_identifier, current_timestamp};
 use crate::utils::constants::{
     STANDARD_RETENTION_DAYS, SECONDS_PER_DAY, STANDARD_MAX_FILE_SIZE, BYTES_PER_MB,
-    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
+    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
 use crate::utils::response::unauthorized;
@@ -54,6 +54,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     }
 
     let file_id = generate_file_id();
+    let delete_token = generate_delete_token();
 
     let path = req.path();
     let filename = if path == "/" || path.is_empty() {
@@ -73,6 +74,11 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         .unwrap_or(STANDARD_RETENTION_DAYS);
     let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
+    let max_downloads = req.headers()
+        .get(HEADER_MAX_DOWNLOADS)?
+        .and_then(|v| v.parse::<i32>().ok())
+        .filter(|&v| v > 0);
+
     let file_metadata = FileMetadata {
         id: file_id.clone(),
         original_filename: filename.clone(),
@@ -82,6 +88,8 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         expires_at,
         download_count: 0,
         uploaded_by: user_id.to_string(),
+        delete_token: delete_token.clone(),
+        max_downloads,
     };
 
     DatabaseService::insert_file(&env, &file_metadata).await?;
@@ -89,6 +97,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let url_obj = req.url()?;
     let host = url_obj.host_str().unwrap_or("localhost");
     let url = format!("https://{}/{}", host, file_id);
+    let delete_url = format!("https://{}/{}/{}", host, file_id, delete_token);
 
     let response = UploadResponse {
         url,
@@ -98,9 +107,12 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         mime_type,
         expires_in: format!("{}d", retention_days),
         expires_at,
+        delete_url: delete_url.clone(),
     };
 
-    Response::from_json(&response)
+    let mut resp = Response::from_json(&response)?;
+    resp.headers_mut().set("X-Url-Delete", &delete_url)?;
+    Ok(resp)
 }
 
 #[cfg(test)]

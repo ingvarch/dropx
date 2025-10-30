@@ -31,6 +31,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 5,
             uploaded_by: "user123".to_string(),
+            delete_token: "secret123".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -55,6 +57,8 @@ mod tests {
             expires_at: 2000,
             download_count: 0,
             uploaded_by: "sensitive_user".to_string(),
+            delete_token: "secret456".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -75,6 +79,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 0,
             uploaded_by: "user".to_string(),
+            delete_token: "secret789".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -92,6 +98,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 9999,
             uploaded_by: "user".to_string(),
+            delete_token: "secret111".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -109,6 +117,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 0,
             uploaded_by: "user".to_string(),
+            delete_token: "secret222".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -126,6 +136,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 0,
             uploaded_by: "user".to_string(),
+            delete_token: "secret333".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();

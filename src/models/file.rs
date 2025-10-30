@@ -10,6 +10,8 @@ pub struct FileMetadata {
     pub expires_at: i64,
     pub download_count: i32,
     pub uploaded_by: String,
+    pub delete_token: String,
+    pub max_downloads: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,6 +23,7 @@ pub struct UploadResponse {
     pub mime_type: String,
     pub expires_in: String,
     pub expires_at: i64,
+    pub delete_url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,6 +79,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 5,
             uploaded_by: "user123".to_string(),
+            delete_token: "secret123".to_string(),
+            max_downloads: None,
         };
 
         let json = serde_json::to_string(&metadata).unwrap();
@@ -86,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_file_metadata_deserialization() {
-        let json = r#"{"id":"abc123","original_filename":"test.txt","size":1024,"mime_type":"text/plain","created_at":1000000,"expires_at":2000000,"download_count":5,"uploaded_by":"user123"}"#;
+        let json = r#"{"id":"abc123","original_filename":"test.txt","size":1024,"mime_type":"text/plain","created_at":1000000,"expires_at":2000000,"download_count":5,"uploaded_by":"user123","delete_token":"secret123"}"#;
         let metadata: FileMetadata = serde_json::from_str(json).unwrap();
 
         assert_eq!(metadata.id, "abc123");
@@ -105,6 +110,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 10,
             uploaded_by: "user123".to_string(),
+            delete_token: "secret456".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -129,6 +136,8 @@ mod tests {
             expires_at: 2000,
             download_count: 0,
             uploaded_by: "sensitive_user".to_string(),
+            delete_token: "secret789".to_string(),
+            max_downloads: None,
         };
 
         let file_info: FileInfo = metadata.into();
@@ -136,6 +145,7 @@ mod tests {
 
         assert!(!json.contains("uploaded_by"));
         assert!(!json.contains("sensitive_user"));
+        assert!(!json.contains("delete_token"));
     }
 
     #[test]
@@ -148,11 +158,13 @@ mod tests {
             mime_type: "text/plain".to_string(),
             expires_in: "7d".to_string(),
             expires_at: 2000000,
+            delete_url: "https://example.com/abc123/secret".to_string(),
         };
 
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"url\":\"https://example.com/abc123\""));
         assert!(json.contains("\"expires_in\":\"7d\""));
+        assert!(json.contains("\"delete_url\":\"https://example.com/abc123/secret\""));
     }
 
     #[test]

@@ -9,7 +9,7 @@ pub mod templates;
 pub mod validation;
 pub mod storage_path;
 
-pub use id_generator::generate_file_id;
+pub use id_generator::{generate_file_id, generate_delete_token};
 pub use mime::detect_mime_type;
 pub use auth::hash_identifier;
 pub use time::current_timestamp;

@@ -19,6 +19,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/", handlers::handle_upload)
         .put_async("/:filename", handlers::handle_upload)
         .get_async("/:id/info", handlers::handle_info)
+        .delete_async("/:id/:token", handlers::handle_delete)
         .get_async("/:id", handlers::handle_download)
         .post_async("/admin/api-keys", handlers::handle_create_key)
         .delete_async("/admin/api-keys/:key", handlers::handle_revoke_key)
@@ -44,6 +45,7 @@ mod tests {
             "/",
             "/:filename",
             "/:id/info",
+            "/:id/:token",
             "/:id",
             "/admin/api-keys",
             "/admin/api-keys/:key",
@@ -160,6 +162,7 @@ mod tests {
             ("POST", "/"),
             ("PUT", "/:filename"),
             ("GET", "/:id/info"),
+            ("DELETE", "/:id/:token"),
             ("GET", "/:id"),
             ("POST", "/admin/api-keys"),
             ("DELETE", "/admin/api-keys/:key"),
@@ -167,7 +170,7 @@ mod tests {
             ("POST", "/admin/rate-limit/reset/:user_id"),
         ];
 
-        assert_eq!(routes.len(), 9);
+        assert_eq!(routes.len(), 10);
 
         let get_count = routes.iter().filter(|(m, _)| *m == "GET").count();
         let post_count = routes.iter().filter(|(m, _)| *m == "POST").count();
@@ -177,7 +180,7 @@ mod tests {
         assert_eq!(get_count, 4);
         assert_eq!(post_count, 3);
         assert_eq!(put_count, 1);
-        assert_eq!(delete_count, 1);
+        assert_eq!(delete_count, 2);
     }
 
     #[test]
@@ -204,6 +207,7 @@ mod tests {
             ("POST", "/"),
             ("PUT", "/:filename"),
             ("GET", "/:id/info"),
+            ("DELETE", "/:id/:token"),
             ("GET", "/:id"),
             ("POST", "/admin/api-keys"),
             ("DELETE", "/admin/api-keys/:key"),
@@ -233,10 +237,11 @@ mod tests {
             "/",
             "/:filename",
             "/:id/info",
+            "/:id/:token",
             "/:id",
         ];
 
-        assert_eq!(public_routes.len(), 4);
+        assert_eq!(public_routes.len(), 5);
     }
 
     #[test]

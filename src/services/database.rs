@@ -16,6 +16,8 @@ struct FileRow {
     expires_at: i64,
     download_count: i64,
     uploaded_by: String,
+    delete_token: String,
+    max_downloads: Option<i64>,
 }
 
 impl From<FileRow> for FileMetadata {
@@ -29,6 +31,8 @@ impl From<FileRow> for FileMetadata {
             expires_at: row.expires_at,
             download_count: row.download_count as i32,
             uploaded_by: row.uploaded_by,
+            delete_token: row.delete_token,
+            max_downloads: row.max_downloads.map(|v| v as i32),
         }
     }
 }
@@ -66,8 +70,8 @@ impl DatabaseService {
     pub async fn insert_file(env: &worker::Env, file: &FileMetadata) -> Result<()> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare(
-            "INSERT INTO files (id, original_filename, size, mime_type, created_at, expires_at, download_count, uploaded_by)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+            "INSERT INTO files (id, original_filename, size, mime_type, created_at, expires_at, download_count, uploaded_by, delete_token, max_downloads)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
         );
 
         statement.bind(&[
@@ -79,6 +83,8 @@ impl DatabaseService {
             (file.expires_at as f64).into(),
             (file.download_count as f64).into(),
             file.uploaded_by.clone().into(),
+            file.delete_token.clone().into(),
+            file.max_downloads.map(|v| (v as f64).into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
         ])?.run().await?;
 
         Ok(())
@@ -100,6 +106,17 @@ impl DatabaseService {
         let statement = d1.prepare("UPDATE files SET download_count = download_count + 1 WHERE id = ?1");
         statement.bind(&[file_id.into()])?.run().await?;
         Ok(())
+    }
+
+    pub async fn delete_file(env: &worker::Env, file_id: &str, delete_token: &str) -> Result<bool> {
+        let d1 = Self::get_db(env)?;
+        let statement = d1.prepare("DELETE FROM files WHERE id = ?1 AND delete_token = ?2");
+        let result = statement.bind(&[file_id.into(), delete_token.into()])?.run().await?;
+
+        match result.meta()? {
+            Some(meta) => Ok(meta.changes.unwrap_or(0) > 0),
+            None => Ok(false),
+        }
     }
 
     pub async fn delete_expired_files(env: &worker::Env) -> Result<Vec<String>> {
@@ -251,6 +268,8 @@ mod tests {
             expires_at: 2000000,
             download_count: 5,
             uploaded_by: "user123".to_string(),
+            delete_token: "secret123".to_string(),
+            max_downloads: None,
         };
 
         let metadata: FileMetadata = row.into();
@@ -263,6 +282,8 @@ mod tests {
         assert_eq!(metadata.expires_at, 2000000);
         assert_eq!(metadata.download_count, 5);
         assert_eq!(metadata.uploaded_by, "user123");
+        assert_eq!(metadata.delete_token, "secret123");
+        assert_eq!(metadata.max_downloads, None);
     }
 
     #[test]
@@ -276,10 +297,13 @@ mod tests {
             expires_at: 2000,
             download_count: 999,
             uploaded_by: "user".to_string(),
+            delete_token: "secret456".to_string(),
+            max_downloads: Some(1000),
         };
 
         let metadata: FileMetadata = row.into();
         assert_eq!(metadata.download_count, 999);
+        assert_eq!(metadata.max_downloads, Some(1000));
     }
 
     #[test]

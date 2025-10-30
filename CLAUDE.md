@@ -1,5 +1,8 @@
 # Rust Best Practices for DropX Project
 
+**PROJECT TYPE: Cloudflare Workers with worker-rs**
+This is a Cloudflare Workers project using the [worker-rs](https://github.com/cloudflare/workers-rs) framework, NOT a standard Rust application. Always consult worker-rs documentation and patterns.
+
 ## Critical Rules
 
 - Never use emoji in code, comments, or documentation
@@ -111,13 +114,63 @@ If any check fails or produces warnings, you MUST fix them immediately before pr
 - Regularly update dependencies for security
 - Use workspace for multi-crate projects
 
-### Cloudflare Workers Specific
+### Cloudflare Workers Specific (worker-rs)
 
+**CRITICAL: Response Handling Pattern**
+- Handler functions return `Result<Response>` from worker-rs
+- **ALWAYS** wrap Response in `Ok()` when returning early or at the end
+- **NEVER** return bare `Response` - it will cause type mismatch errors
+- Use `Ok(Response::from_json(&data)?.with_status(status))` pattern
+
+```rust
+// ✅ CORRECT - wrapped in Ok()
+pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let file_id = get_file_id_param(&ctx)?;
+
+    if file_not_found {
+        return Ok(Response::from_json(&ErrorResponse {
+            error: "NotFound".to_string(),
+            message: "File not found".to_string(),
+        })?
+        .with_status(HTTP_NOT_FOUND));
+    }
+
+    Ok(Response::from_json(&success_data)?.with_status(HTTP_OK))
+}
+
+// ❌ WRONG - missing Ok() wrapper
+pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    Response::from_json(&data)?.with_status(HTTP_OK)  // ERROR: type mismatch
+}
+```
+
+**RouteContext Borrowing Pattern:**
+```rust
+// ✅ CORRECT - extract params BEFORE moving env
+pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let file_id = get_file_id_param(&ctx)?;        // Borrow ctx
+    let delete_token = get_required_param(&ctx, "token", ERR)?;  // Borrow ctx
+
+    let env = ctx.env;  // NOW we can move env
+
+    DatabaseService::get_file(&env, file_id).await?;  // Use moved env
+}
+
+// ❌ WRONG - moving env before extracting params
+pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let env = ctx.env;  // Move env
+    let file_id = ctx.param("id")?;  // ERROR: ctx already moved
+}
+```
+
+**Other worker-rs Patterns:**
 - Keep cold start time low (optimize binary size)
 - Always verify current worker-rs version and API from official documentation
 - Handle bindings (R2, D1, Durable Objects) gracefully
+- Reference `ctx` for param extraction, then move `ctx.env` for service calls
 - Implement proper CORS handling
-- Use structured logging with context
+- Use structured logging with `console_log!` macro
+- Import `console_log` from worker crate: `use worker::console_log;`
 
 ### Security
 

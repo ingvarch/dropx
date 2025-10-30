@@ -45,6 +45,7 @@ pub const HEADER_CONTENT_LENGTH: &str = "Content-Length";
 pub const HEADER_RETRY_AFTER: &str = "Retry-After";
 pub const HEADER_DOWNLOAD_COUNT: &str = "X-Download-Count";
 pub const HEADER_EXPIRES_AT: &str = "X-Expires-At";
+pub const HEADER_MAX_DOWNLOADS: &str = "Max-Downloads";
 
 pub const DO_RATE_LIMITER_BASE_URL: &str = "http://rate-limiter";
 pub const DO_RATE_LIMITER_PATH_CHECK: &str = "/check";
