@@ -54,7 +54,6 @@ export async function createApiKey(tier) {
   return (await createApiKeyResponse(tier)).key;
 }
 
-// Upload responses use the public https host; tests send the path to the local Worker.
 export function pathOf(url) {
   return new URL(url).pathname;
 }

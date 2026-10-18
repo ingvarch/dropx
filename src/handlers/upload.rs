@@ -1,11 +1,11 @@
 use worker::{console_log, Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService, RateLimitCheck};
-use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, client_id, hash_secret, current_timestamp};
+use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, client_id, hash_secret, current_timestamp, origin_for_host};
 use crate::utils::constants::{
     ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
-    HEADER_API_KEY, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
+    HEADER_API_KEY, HEADER_HOST, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
     HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, ERR_INVALID_RETENTION,
     UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
@@ -147,10 +147,9 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         return Err(insert_error);
     }
 
-    let url_obj = req.url()?;
-    let host = url_obj.host_str().unwrap_or("localhost");
-    let url = format!("https://{}/{}", host, file_id);
-    let delete_url = format!("https://{}/{}/{}", host, file_id, delete_token);
+    let origin = origin_for_host(req.headers().get(HEADER_HOST)?.as_deref());
+    let url = format!("{}/{}", origin, file_id);
+    let delete_url = format!("{}/{}/{}", origin, file_id, delete_token);
 
     let response = UploadResponse {
         url,

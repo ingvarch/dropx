@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  BASE_URL,
   createApiKey,
   d1Raw,
   fileRowExists,
@@ -291,4 +292,19 @@ test('upload at the anonymous size limit succeeds', async () => {
   const file = await uploadOk(Buffer.alloc(limit));
 
   assert.equal(file.size, limit);
+});
+
+test('upload links start with the Worker origin and work as returned', async () => {
+  const response = await upload('origin check');
+  const file = await response.json();
+
+  assert.equal(file.url, `${BASE_URL}/${file.id}`);
+  assert.ok(file.delete_url.startsWith(`${BASE_URL}/${file.id}/`), file.delete_url);
+  assert.equal(response.headers.get('X-Url-Delete'), file.delete_url);
+
+  const downloaded = await request(file.url);
+  assert.equal(await downloaded.text(), 'origin check');
+
+  const deleted = await request(file.delete_url, { method: 'DELETE' });
+  assert.equal(deleted.status, 200);
 });
