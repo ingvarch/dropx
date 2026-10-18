@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { listR2ObjectSizes, pathOf, request, setExpiresAt, upload, uploadOk } from './helpers.mjs';
+import {
+  fileRowExists,
+  listR2ObjectSizes,
+  pathOf,
+  renameExpiredFile,
+  request,
+  runScheduledCleanup,
+  setExpiresAt,
+  upload,
+  uploadOk,
+} from './helpers.mjs';
 
 test('upload returns the file id, size, expiry and links', async () => {
   const file = await uploadOk('hello', { filename: 'hello.txt' });
@@ -150,4 +160,36 @@ test('delete with the delete token still removes an expired file and its object'
   assert.equal(deleted.status, 200);
   assert.equal((await deleted.json()).success, true);
   assert.ok(!(await listR2ObjectSizes()).includes(body.length), 'object left in R2');
+});
+
+test('the cleanup job removes the row and the object of an expired file and keeps the others', async () => {
+  const expiredBody = 'x'.repeat(2000 + Math.floor(Math.random() * 100000));
+  const activeBody = 'y'.repeat(expiredBody.length + 1);
+  const expired = await uploadOk(expiredBody);
+  const active = await uploadOk(activeBody);
+  await setExpiresAt(expired.id, Math.floor(Date.now() / 1000) - 1);
+
+  await runScheduledCleanup();
+
+  assert.equal(await fileRowExists(expired.id), false, 'row left in D1');
+  const sizes = await listR2ObjectSizes();
+  assert.ok(!sizes.includes(expiredBody.length), 'object left in R2');
+  assert.ok(sizes.includes(activeBody.length), 'active object removed from R2');
+  const download = await request(`/${active.id}`);
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), activeBody);
+});
+
+test('the cleanup job keeps the row of a file whose R2 delete failed', async () => {
+  const failing = await uploadOk('z'.repeat(3000 + Math.floor(Math.random() * 100000)));
+  const normal = await uploadOk('w'.repeat(500 + Math.floor(Math.random() * 1000)));
+  const rejectedKey = 'k'.repeat(1100);
+  const past = Math.floor(Date.now() / 1000) - 1;
+  await renameExpiredFile(failing.id, rejectedKey, past);
+  await setExpiresAt(normal.id, past);
+
+  await runScheduledCleanup();
+
+  assert.equal(await fileRowExists(normal.id), false, 'row of deleted object left in D1');
+  assert.equal(await fileRowExists(rejectedKey), true, 'row of failed R2 delete removed');
 });

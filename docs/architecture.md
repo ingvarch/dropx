@@ -87,8 +87,9 @@ One Durable Object per client, named by the client identity (the API key, or the
 
 The cron trigger runs `cleanup::run_cleanup` daily at 02:00 UTC:
 
-1. Select the IDs of rows with `expires_at` in the past, then delete those rows from D1.
-2. Delete each object from R2. A failure is logged and not retried: the row is already gone, so the object stays in R2.
+1. Select the IDs of rows with `expires_at` at or before now: the same rows the download routes no longer serve.
+2. Delete each object from R2. A failure is logged.
+3. Delete from D1 only the rows whose object was deleted. A row whose R2 delete failed stays, and the next run retries it.
 
 Expired files are already unavailable before this job runs: the download and info routes skip rows with `expires_at` in the past, and only delete still finds them. The job frees their storage.
 
