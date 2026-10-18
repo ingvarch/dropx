@@ -5,7 +5,6 @@ build
 .env
 .dev.vars
 .DS_Store
-Cargo.lock
 *.swp
 *.swo
 *~
