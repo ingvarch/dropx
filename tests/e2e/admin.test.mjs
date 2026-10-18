@@ -1,11 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adminRequest, createApiKey, request, upload, uploadOk } from './helpers.mjs';
+import { ADMIN_TOKEN, adminRequest, createApiKey, request, upload, uploadOk } from './helpers.mjs';
 
 test('admin routes need the admin token', async () => {
   const response = await request('/admin/stats');
 
   assert.equal(response.status, 401);
+});
+
+test('admin routes reject a wrong admin token', async () => {
+  const lastCharChanged = ADMIN_TOKEN.slice(0, -1) + (ADMIN_TOKEN.endsWith('x') ? 'y' : 'x');
+  const prefix = ADMIN_TOKEN.slice(0, -1);
+
+  for (const token of [lastCharChanged, prefix]) {
+    const response = await request('/admin/stats', { headers: { 'X-Admin-Token': token } });
+
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, 'Unauthorized');
+  }
 });
 
 test('stats count stored files and active API keys', async () => {

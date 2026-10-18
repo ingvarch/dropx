@@ -1,5 +1,6 @@
 use sha2::{Digest, Sha256};
 use hex;
+use subtle::ConstantTimeEq;
 use worker::{Request, Env, Result, Response};
 use crate::utils::response::unauthorized;
 use crate::utils::constants::{HASH_TRUNCATE_BYTES, HEADER_ADMIN_TOKEN};
@@ -16,11 +17,18 @@ pub fn generate_api_key() -> String {
     format!("tfr_{}", hex::encode(uuid.as_bytes()))
 }
 
+/// Hashing first makes the comparison independent of the secret's length.
+pub fn secrets_match(provided: &str, expected: &str) -> bool {
+    let provided_digest = Sha256::digest(provided.as_bytes());
+    let expected_digest = Sha256::digest(expected.as_bytes());
+    provided_digest.as_slice().ct_eq(expected_digest.as_slice()).into()
+}
+
 pub fn verify_admin_token(req: &Request, env: &Env) -> Result<bool> {
     let token = req.headers().get(HEADER_ADMIN_TOKEN)?;
     let admin_token = env.var("ADMIN_TOKEN")?.to_string();
 
-    Ok(token.as_deref() == Some(admin_token.as_str()))
+    Ok(token.is_some_and(|provided| secrets_match(&provided, &admin_token)))
 }
 
 pub fn require_admin_token(req: &Request, env: &Env) -> Option<Result<Response>> {
@@ -43,6 +51,31 @@ macro_rules! require_admin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_secrets_match_equal() {
+        assert!(secrets_match("s3cret-token", "s3cret-token"));
+    }
+
+    #[test]
+    fn test_secrets_match_same_length_different() {
+        assert!(!secrets_match("s3cret-tokeX", "s3cret-token"));
+    }
+
+    #[test]
+    fn test_secrets_match_different_length() {
+        assert!(!secrets_match("s3cret-token-longer", "s3cret-token"));
+    }
+
+    #[test]
+    fn test_secrets_match_empty_provided() {
+        assert!(!secrets_match("", "s3cret-token"));
+    }
+
+    #[test]
+    fn test_secrets_match_prefix_of_secret() {
+        assert!(!secrets_match("s3cret", "s3cret-token"));
+    }
 
     #[test]
     fn test_hash_identifier_consistency() {
