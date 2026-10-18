@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  createApiKey,
   d1Raw,
   fileRowExists,
   listR2ObjectSizes,
@@ -12,6 +13,8 @@ import {
   upload,
   uploadOk,
 } from './helpers.mjs';
+
+const ANON_MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 test('upload returns the file id, size, expiry and links', async () => {
   const file = await uploadOk('hello', { filename: 'hello.txt' });
@@ -221,4 +224,49 @@ test('the cleanup job keeps the row of a file whose R2 delete failed', async () 
 
   assert.equal(await fileRowExists(normal.id), false, 'row of deleted object left in D1');
   assert.equal(await fileRowExists(rejectedKey), true, 'row of failed R2 delete removed');
+});
+
+test('expires_at is the retention period after the upload', async () => {
+  const before = Math.floor(Date.now() / 1000);
+  const file = await uploadOk('hello');
+  const after = Math.floor(Date.now() / 1000);
+
+  const threeDays = 3 * 24 * 60 * 60;
+  assert.ok(file.expires_at >= before + threeDays && file.expires_at <= after + threeDays, `expires_at: ${file.expires_at}`);
+});
+
+test('upload without a file name is stored as "file"', async () => {
+  const response = await request('/', { method: 'POST', body: 'hello' });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).filename, 'file');
+});
+
+test('upload above the anonymous size limit returns 413 and stores nothing', async () => {
+  const limit = ANON_MAX_FILE_SIZE;
+  const response = await upload(Buffer.alloc(limit + 1));
+
+  assert.equal(response.status, 413);
+  const body = await response.json();
+  assert.equal(body.error, 'File too large');
+  assert.equal(body.max_size, limit);
+  assert.ok(!(await listR2ObjectSizes()).includes(limit + 1), 'object left in R2');
+});
+
+test('an API key raises the size limit to its tier', async () => {
+  const key = await createApiKey('standard');
+  // One byte more than the 413 test uploads, so that test can look for its own object size in R2.
+  const size = ANON_MAX_FILE_SIZE + 2;
+
+  const file = await uploadOk(Buffer.alloc(size), { headers: { 'X-API-Key': key } });
+
+  assert.equal(file.size, size);
+});
+
+test('upload at the anonymous size limit succeeds', async () => {
+  const limit = ANON_MAX_FILE_SIZE;
+
+  const file = await uploadOk(Buffer.alloc(limit));
+
+  assert.equal(file.size, limit);
 });
