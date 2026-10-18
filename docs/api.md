@@ -67,7 +67,7 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 
 ## Download
 
-`GET /:id`, `GET /get/:id`, `GET /inline/:id`. The three routes differ in `Content-Disposition` and in the order of the download-limit check (see below):
+`GET /:id`, `GET /get/:id`, `GET /inline/:id`. The three routes differ only in `Content-Disposition`:
 
 - `/:id` sends `inline` for images (JPEG, PNG, GIF, WebP, SVG), PDF, plain text, HTML, CSS, JavaScript, MP4, WebM, MP3, OGG and WAV, and `attachment` for everything else.
 - `/get/:id` always sends `attachment`.
@@ -85,7 +85,7 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 
 Every download request adds one to the counter. When the counter reaches `Max-Downloads`, the file is deleted.
 
-`/get/:id` and `/inline/:id` delete the file before they read it. The download that reaches the limit therefore returns `404` with `File not found in storage`. `/:id` reads the file first, so the last download succeeds.
+The file is read before it is deleted, so the download that reaches the limit succeeds. The next request returns `404`.
 
 Expiry is enforced by the daily cleanup job, not on each request. A file stays downloadable until the job removes it. See [architecture.md](architecture.md#cleanup-job).
 

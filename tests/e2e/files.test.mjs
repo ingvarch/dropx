@@ -76,6 +76,20 @@ test('Max-Downloads deletes the file after the last allowed download', async () 
   assert.equal((await request(`/${file.id}`)).status, 404);
 });
 
+// data.bin is sent as an attachment by /:id, so each route shows that it sets its own disposition.
+for (const [route, disposition] of [['get', 'attachment'], ['inline', 'inline']]) {
+  test(`/${route}/:id serves the last allowed download and then returns 404`, async () => {
+    const file = await uploadOk('hello', { filename: 'data.bin', headers: { 'Max-Downloads': '1' } });
+
+    const first = await request(`/${route}/${file.id}`);
+    assert.equal(first.status, 200);
+    assert.equal(await first.text(), 'hello');
+    assert.equal(first.headers.get('Content-Disposition'), `${disposition}; filename="data.bin"`);
+
+    assert.equal((await request(`/${route}/${file.id}`)).status, 404);
+  });
+}
+
 test('Max-Age-Days shortens the retention', async () => {
   const file = await uploadOk('hello', { headers: { 'Max-Age-Days': '1' } });
 

@@ -27,15 +27,13 @@ The retention check (step 7) runs after the R2 write. A request rejected there l
 
 ## Download flow
 
-`GET /:id`:
+`GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path and differ only in `Content-Disposition`:
 
 1. Read the metadata row from D1. No row returns `404`.
 2. Read the object from R2. No object returns `404`.
 3. Add one to `download_count` in D1.
 4. If `max_downloads` is set and the new count has reached it, delete the object from R2 and the row from D1.
 5. Return the bytes with the headers listed in [api.md](api.md#download).
-
-`/get/:id` and `/inline/:id` do the same steps in a different order: they do steps 3 and 4 before reading R2.
 
 The expiry time is not checked on download.
 
