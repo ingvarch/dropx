@@ -26,7 +26,7 @@ Local setup, the database migrations and `wrangler dev` are described in [docs/d
 
 Pull requests are merged with rebase or squash, so `main` keeps a linear history.
 
-The coding rules for this project (error handling, naming, worker-rs patterns) are in [CLAUDE.md](CLAUDE.md).
+The coding rules for this project (testing, worker-rs patterns, security) are in [AGENTS.md](AGENTS.md).
 
 ## Code of conduct
 

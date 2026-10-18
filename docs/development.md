@@ -78,7 +78,7 @@ npm run test:e2e
 
 GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 
-The rules for code, tests and commits are in [CLAUDE.md](../CLAUDE.md).
+The rules for code, tests and commits are in [AGENTS.md](../AGENTS.md).
 
 ## Project structure
 
@@ -127,7 +127,7 @@ dropx/
 ├── package.json                # wrangler and the e2e test script
 ├── wrangler.toml               # Bindings, cron trigger, build command
 ├── .dev.vars.example           # Template for local secrets
-└── CLAUDE.md                   # Development guidelines
+└── AGENTS.md                   # Instructions for coding agents
 ```
 
 How the parts fit together is in [architecture.md](architecture.md).
