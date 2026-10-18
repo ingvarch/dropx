@@ -47,7 +47,7 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
                 console_log!("Failed to delete file from R2 after max downloads: {:?}", e);
             }
 
-            if let Err(e) = DatabaseService::delete_file(&ctx.env, file_id, &file_metadata.delete_token).await {
+            if let Err(e) = DatabaseService::delete_files(&ctx.env, &[file_id.to_string()]).await {
                 console_log!("Failed to delete file from database after max downloads: {:?}", e);
             }
         }

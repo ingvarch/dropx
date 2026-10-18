@@ -34,7 +34,7 @@ Copy the `database_id` from the output into the `[[d1_databases]]` block of `wra
 
 ### Migrations
 
-The `migrations/` folder holds three files, `0001_initial.sql`, `0002_add_delete_token.sql` and `0003_add_max_downloads.sql`. For a new database, apply all of them:
+The `migrations/` folder holds `0001_initial.sql`, `0002_add_delete_token.sql`, `0003_add_max_downloads.sql` and `0004_hash_stored_secrets.sql`. For a new database, apply all of them:
 
 ```bash
 npx wrangler d1 migrations apply dropx-db --remote
@@ -43,6 +43,10 @@ npx wrangler d1 migrations apply dropx-db --remote
 wrangler records applied files in the `d1_migrations` table and skips them next time.
 
 A database set up earlier with `wrangler d1 execute --file` has no history in `d1_migrations`. On such a database apply only the new migration files, with `npx wrangler d1 execute dropx-db --remote --file=migrations/<file>.sql`.
+
+Migration `0004` replaces the stored delete tokens and API keys with random values and deactivates all API keys, because SQLite cannot hash them. After it runs, existing delete links stop working, existing API keys return `401` and must be created again, and `uploaded_by` of existing files no longer matches any client. Files stay downloadable until they expire. The migration only writes data in the old format, so the previous Worker version still runs on the migrated database.
+
+Apply `0004` right before you deploy the version that hashes secrets. It keeps delete tokens and API keys that are already 64-character SHA-256 hex, so values written by the new version survive either order. Files the previous version uploads after the migration (between the two steps, or after a `wrangler rollback`) keep a plain delete token until they expire, and their delete links do not work with the new version.
 
 ### Durable Object
 
@@ -59,6 +63,12 @@ npx wrangler secret put ADMIN_TOKEN
 ```
 
 Enter a long random value when prompted. It is used for the [admin API](admin.md).
+
+```bash
+openssl rand -hex 32 | npx wrangler secret put IP_HASH_KEY
+```
+
+`IP_HASH_KEY` is the key for the IP hashes. Set it before you deploy this version: without it anonymous uploads fail with `500`. Keep the value. If it changes, every client gets a new rate limit identity.
 
 ```bash
 npx wrangler secret list

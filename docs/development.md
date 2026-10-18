@@ -23,7 +23,7 @@ Local setup, checks and project layout. To put the service on Cloudflare, see [d
 
 ## Local secrets
 
-The only secret is `ADMIN_TOKEN`. Copy the example file and set your own value:
+The secrets are `ADMIN_TOKEN` and `IP_HASH_KEY` (a random value, for example from `openssl rand -hex 32`). Copy the example file and set your own values:
 
 ```bash
 cp .dev.vars.example .dev.vars
@@ -74,7 +74,7 @@ cargo test
 npm run test:e2e
 ```
 
-`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
+`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It generates a random `ADMIN_TOKEN` and `IP_HASH_KEY` for the run and does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
 
 GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 
@@ -105,7 +105,7 @@ dropx/
 │   │   └── api_key.rs          # API keys and tiers
 │   ├── utils/
 │   │   ├── constants.rs        # Limits, header names, status codes
-│   │   ├── auth.rs             # IP hashing, API key generation, admin token check
+│   │   ├── auth.rs             # secret and IP hashing, API key generation, admin token check
 │   │   ├── id_generator.rs     # File IDs and delete tokens
 │   │   ├── storage_path.rs     # R2 object paths
 │   │   ├── mime.rs             # MIME type detection

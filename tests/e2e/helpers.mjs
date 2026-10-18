@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { createHash, randomInt } from 'node:crypto';
+import { createHash, createHmac, randomInt } from 'node:crypto';
 
 export const BASE_URL = process.env.DROPX_URL;
 export const ADMIN_TOKEN = process.env.DROPX_ADMIN_TOKEN;
-assert.ok(BASE_URL && ADMIN_TOKEN, 'start the e2e tests with `npm run test:e2e`');
+const IP_HASH_KEY = process.env.DROPX_IP_HASH_KEY;
+assert.ok(BASE_URL && ADMIN_TOKEN && IP_HASH_KEY, 'start the e2e tests with `npm run test:e2e`');
 
 const IP_HASH_HEX_LENGTH = 32;
 
@@ -12,9 +13,13 @@ export function newClientIp() {
   return `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
 }
 
-// Same as hash_identifier in src/utils/auth.rs: the rate limiter's id for an anonymous client.
+export function sha256Hex(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+// Same as hash_ip in src/utils/auth.rs: the rate limiter's id for an anonymous client.
 export function ipUserId(ip) {
-  return createHash('sha256').update(ip).digest('hex').slice(0, IP_HASH_HEX_LENGTH);
+  return createHmac('sha256', IP_HASH_KEY).update(ip).digest('hex').slice(0, IP_HASH_HEX_LENGTH);
 }
 
 export function request(path, { ip = newClientIp(), headers = {}, ...init } = {}) {

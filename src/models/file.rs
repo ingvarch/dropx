@@ -10,7 +10,7 @@ pub struct FileMetadata {
     pub expires_at: i64,
     pub download_count: i32,
     pub uploaded_by: String,
-    pub delete_token: String,
+    pub delete_token_hash: String,
     pub max_downloads: Option<i32>,
 }
 
@@ -79,7 +79,7 @@ mod tests {
             expires_at: 2000000,
             download_count: 10,
             uploaded_by: "user123".to_string(),
-            delete_token: "secret456".to_string(),
+            delete_token_hash: "secret456".to_string(),
             max_downloads: None,
         };
 
@@ -105,7 +105,7 @@ mod tests {
             expires_at: 2000,
             download_count: 0,
             uploaded_by: "sensitive_user".to_string(),
-            delete_token: "secret789".to_string(),
+            delete_token_hash: "secret789".to_string(),
             max_downloads: None,
         };
 

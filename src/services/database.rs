@@ -23,7 +23,8 @@ struct FileRow {
     expires_at: i64,
     download_count: i64,
     uploaded_by: String,
-    delete_token: String,
+    #[serde(rename = "delete_token")]
+    delete_token_hash: String,
     max_downloads: Option<i64>,
 }
 
@@ -38,7 +39,7 @@ impl From<FileRow> for FileMetadata {
             expires_at: row.expires_at,
             download_count: row.download_count as i32,
             uploaded_by: row.uploaded_by,
-            delete_token: row.delete_token,
+            delete_token_hash: row.delete_token_hash,
             max_downloads: row.max_downloads.map(|v| v as i32),
         }
     }
@@ -46,7 +47,8 @@ impl From<FileRow> for FileMetadata {
 
 #[derive(Deserialize)]
 struct ApiKeyRow {
-    key: String,
+    #[serde(rename = "key")]
+    key_hash: String,
     user_email: Option<String>,
     created_at: i64,
     last_used_at: Option<i64>,
@@ -90,7 +92,7 @@ impl DatabaseService {
             (file.expires_at as f64).into(),
             (file.download_count as f64).into(),
             file.uploaded_by.clone().into(),
-            file.delete_token.clone().into(),
+            file.delete_token_hash.clone().into(),
             file.max_downloads.map(|v| (v as f64).into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
         ])?.run().await?;
 
@@ -122,10 +124,10 @@ impl DatabaseService {
         Ok(())
     }
 
-    pub async fn delete_file(env: &worker::Env, file_id: &str, delete_token: &str) -> Result<bool> {
+    pub async fn delete_file_with_token(env: &worker::Env, file_id: &str, delete_token_hash: &str) -> Result<bool> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("DELETE FROM files WHERE id = ?1 AND delete_token = ?2");
-        let result = statement.bind(&[file_id.into(), delete_token.into()])?.run().await?;
+        let result = statement.bind(&[file_id.into(), delete_token_hash.into()])?.run().await?;
         rows_matched(result.meta()?)
     }
 
@@ -159,7 +161,7 @@ impl DatabaseService {
 
     pub async fn insert_api_key(
         env: &worker::Env,
-        key: &str,
+        key_hash: &str,
         email: Option<&str>,
         tier: ApiKeyTier,
         created_at: i64,
@@ -171,7 +173,7 @@ impl DatabaseService {
         );
 
         statement.bind(&[
-            key.into(),
+            key_hash.into(),
             email.map(|e| e.into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
             (created_at as f64).into(),
             (DB_BOOL_TRUE as f64).into(),
@@ -181,15 +183,15 @@ impl DatabaseService {
         Ok(())
     }
 
-    pub async fn get_api_key(env: &worker::Env, key: &str) -> Result<Option<ApiKey>> {
+    pub async fn get_api_key(env: &worker::Env, key_hash: &str) -> Result<Option<ApiKey>> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("SELECT * FROM api_keys WHERE key = ?1");
-        let query = statement.bind(&[key.into()])?;
+        let query = statement.bind(&[key_hash.into()])?;
 
         match query.first::<ApiKeyRow>(None).await? {
             Some(row) => {
                 Ok(Some(ApiKey {
-                    key: row.key,
+                    key_hash: row.key_hash,
                     user_email: row.user_email,
                     created_at: row.created_at,
                     last_used_at: row.last_used_at,
@@ -201,17 +203,17 @@ impl DatabaseService {
         }
     }
 
-    pub async fn update_api_key_last_used(env: &worker::Env, key: &str, timestamp: i64) -> Result<()> {
+    pub async fn update_api_key_last_used(env: &worker::Env, key_hash: &str, timestamp: i64) -> Result<()> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE api_keys SET last_used_at = ?1 WHERE key = ?2");
-        statement.bind(&[(timestamp as f64).into(), key.into()])?.run().await?;
+        statement.bind(&[(timestamp as f64).into(), key_hash.into()])?.run().await?;
         Ok(())
     }
 
-    pub async fn revoke_api_key(env: &worker::Env, key: &str) -> Result<bool> {
+    pub async fn revoke_api_key(env: &worker::Env, key_hash: &str) -> Result<bool> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE api_keys SET is_active = ?1 WHERE key = ?2");
-        let result = statement.bind(&[(DB_BOOL_FALSE as f64).into(), key.into()])?.run().await?;
+        let result = statement.bind(&[(DB_BOOL_FALSE as f64).into(), key_hash.into()])?.run().await?;
         rows_matched(result.meta()?)
     }
 
@@ -305,7 +307,7 @@ mod tests {
             expires_at: 2000000,
             download_count: 5,
             uploaded_by: "user123".to_string(),
-            delete_token: "secret123".to_string(),
+            delete_token_hash: "secret123".to_string(),
             max_downloads: None,
         };
 
@@ -319,7 +321,7 @@ mod tests {
         assert_eq!(metadata.expires_at, 2000000);
         assert_eq!(metadata.download_count, 5);
         assert_eq!(metadata.uploaded_by, "user123");
-        assert_eq!(metadata.delete_token, "secret123");
+        assert_eq!(metadata.delete_token_hash, "secret123");
         assert_eq!(metadata.max_downloads, None);
     }
 
@@ -334,7 +336,7 @@ mod tests {
             expires_at: 2000,
             download_count: 999,
             uploaded_by: "user".to_string(),
-            delete_token: "secret456".to_string(),
+            delete_token_hash: "secret456".to_string(),
             max_downloads: Some(1000),
         };
 

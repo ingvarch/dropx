@@ -3,7 +3,7 @@ use crate::models::{
     CreateApiKeyRequest, ApiKeyResponse, ApiKeyLimits, RevokeApiKeyResponse, ResetRateLimitResponse,
 };
 use crate::services::{DatabaseService, RateLimiterService};
-use crate::utils::auth::generate_api_key;
+use crate::utils::auth::{generate_api_key, hash_secret};
 use crate::utils::response::{bad_request, get_required_param};
 use crate::utils::current_timestamp;
 use crate::utils::constants::HTTP_CREATED;
@@ -26,7 +26,7 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
 
     DatabaseService::insert_api_key(
         &env,
-        &key,
+        &hash_secret(&key),
         Some(&request_body.email),
         request_body.tier,
         now,
@@ -51,7 +51,7 @@ pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Re
 
     let key = get_required_param(&ctx, "key", "API key parameter is required")?;
 
-    let success = DatabaseService::revoke_api_key(&ctx.env, key).await?;
+    let success = DatabaseService::revoke_api_key(&ctx.env, &hash_secret(key)).await?;
 
     if success {
         Response::from_json(&RevokeApiKeyResponse {

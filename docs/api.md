@@ -142,4 +142,4 @@ Errors from the handlers are JSON:
 { "error": "File not found", "message": "The requested file does not exist or has expired" }
 ```
 
-Exceptions: a path that exists for another method returns plain-text `405 Method Not Allowed`; unknown routes return plain-text `404 Not Found`; internal failures (database, storage, rate limiter, missing `ADMIN_TOKEN`) return plain-text `500`.
+Exceptions: a path that exists for another method returns plain-text `405 Method Not Allowed`; unknown routes return plain-text `404 Not Found`; internal failures (database, storage, rate limiter, missing `ADMIN_TOKEN`, missing `IP_HASH_KEY` for anonymous uploads) return plain-text `500`.

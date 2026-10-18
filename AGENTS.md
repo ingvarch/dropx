@@ -64,7 +64,7 @@ Write the failing test first, and confirm it fails for the right reason.
 
 ## Security
 
-- Hash client identifiers (`hash_identifier` in `src/utils/auth.rs`).
+- Store only hashes of API keys and delete tokens (`hash_secret`), and hash client IPs with the `IP_HASH_KEY` secret (`client_id`, `hash_ip`) in `src/utils/auth.rs`.
 - Compare secrets in constant time (`secrets_match`).
 - Validate all input.
 - Never log secrets.
