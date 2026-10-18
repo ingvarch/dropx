@@ -49,7 +49,7 @@ Each upload gets an expiry time (`expires_at`) when it is stored.
   - `N` of 0 or negative: `400`, `Retention period must be at least 1 day`.
   - A value that is not an integer is ignored, and the default applies.
 
-An expired file is removed by the daily cleanup job, not at the exact expiry time. See [architecture.md](architecture.md#cleanup-job).
+After `expires_at`, the download routes and `/:id/info` return `404`. Delete with the token still works until the daily cleanup job removes the file. See [api.md](api.md#delete) and [architecture.md](architecture.md#cleanup-job).
 
 ## Max-Downloads
 

@@ -22,11 +22,6 @@ pub fn get_max_file_size(tier: Option<&ApiKeyTier>) -> usize {
     }
 }
 
-#[allow(dead_code)]
-pub fn is_file_expired(current_timestamp: i64, expires_at: i64) -> bool {
-    current_timestamp >= expires_at
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,55 +120,6 @@ mod tests {
         let size = STANDARD_MAX_FILE_SIZE + 1024;
         assert!(!is_file_size_valid(size, Some(&ApiKeyTier::Standard)));
         assert!(is_file_size_valid(size, Some(&ApiKeyTier::Premium)));
-    }
-
-    #[test]
-    fn test_file_expired_before_expiry() {
-        let current = 1000000;
-        let expires_at = 2000000;
-        assert!(!is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_expired_at_expiry() {
-        let current = 2000000;
-        let expires_at = 2000000;
-        assert!(is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_expired_after_expiry() {
-        let current = 2000001;
-        let expires_at = 2000000;
-        assert!(is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_expired_one_second_before() {
-        let expires_at = 2000000;
-        let current = expires_at - 1;
-        assert!(!is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_expired_one_second_after() {
-        let expires_at = 2000000;
-        let current = expires_at + 1;
-        assert!(is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_not_expired_far_in_future() {
-        let current = 1000000;
-        let expires_at = 9999999999;
-        assert!(!is_file_expired(current, expires_at));
-    }
-
-    #[test]
-    fn test_file_expired_far_in_past() {
-        let current = 9999999999;
-        let expires_at = 1000000;
-        assert!(is_file_expired(current, expires_at));
     }
 
     #[test]

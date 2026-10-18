@@ -29,13 +29,11 @@ A request that fails in steps 2 to 4 stores no file: nothing is written to R2 an
 
 `GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path and differ only in `Content-Disposition`:
 
-1. Read the metadata row from D1. No row returns `404`.
+1. Read the metadata row from D1. No row, or a row with `expires_at` in the past, returns `404`.
 2. Read the object from R2. No object returns `404`.
 3. Add one to `download_count` in D1.
 4. If `max_downloads` is set and the new count has reached it, delete the object from R2 and the row from D1.
 5. Return the bytes with the headers listed in [api.md](api.md#download).
-
-The expiry time is not checked on download.
 
 ## Storage path
 
@@ -92,7 +90,7 @@ The cron trigger runs `cleanup::run_cleanup` daily at 02:00 UTC:
 1. Select the IDs of rows with `expires_at` in the past, then delete those rows from D1.
 2. Delete each object from R2. A failure is logged and not retried: the row is already gone, so the object stays in R2.
 
-Expired files stay downloadable until this job runs.
+Expired files are already unavailable before this job runs: the download and info routes skip rows with `expires_at` in the past, and only delete still finds them. The job frees their storage.
 
 ## IDs and tokens
 
