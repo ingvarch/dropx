@@ -12,10 +12,10 @@ If `ADMIN_TOKEN` is not set on the Worker, admin requests fail with a server err
 
 ## Setting ADMIN_TOKEN
 
-`ADMIN_TOKEN` is the only runtime setting the code reads. Everything else the Worker uses comes from the bindings in `wrangler.toml`.
+The code reads two secrets: `ADMIN_TOKEN` for the admin API and `IP_HASH_KEY` for IP hashes. Without `IP_HASH_KEY`, anonymous uploads fail with `500`. Everything else the Worker uses comes from the bindings in `wrangler.toml`.
 
-- Production: `npx wrangler secret put ADMIN_TOKEN` (see [deployment.md](deployment.md#secrets)).
-- Local: set `ADMIN_TOKEN` in `.dev.vars` (see [development.md](development.md#local-secrets)).
+- Production: `npx wrangler secret put ADMIN_TOKEN` and `npx wrangler secret put IP_HASH_KEY` (see [deployment.md](deployment.md#secrets)).
+- Local: set `ADMIN_TOKEN` and `IP_HASH_KEY` in `.dev.vars` (see [development.md](development.md#local-secrets)).
 
 ## Create an API key
 
@@ -41,7 +41,7 @@ Response, status `201`:
 }
 ```
 
-The client sends the key in the `X-API-Key` header on uploads.
+The response is the only time the key is shown. The database stores its SHA-256, so a lost key cannot be recovered. Revoking through the API needs the plain key. For a lost key, deactivate it in D1 with `npx wrangler d1 execute dropx-db --remote --command "UPDATE api_keys SET is_active = 0 WHERE user_email = '...'"`, then create a new one. The client sends the key in the `X-API-Key` header on uploads.
 
 ## Revoke an API key
 
@@ -81,13 +81,13 @@ curl https://dropx.click/admin/stats -H "X-Admin-Token: $ADMIN_TOKEN"
 `POST /admin/rate-limit/reset/:user_id`
 
 ```bash
-curl -X POST https://dropx.click/admin/rate-limit/reset/tfr_xxxxx \
+curl -X POST https://dropx.click/admin/rate-limit/reset/<user_id> \
   -H "X-Admin-Token: $ADMIN_TOKEN"
 ```
 
 `user_id` is the identity the limiter counts, see [limits.md](limits.md#rate-limits):
 
-- For an API key client: the key itself.
-- For an anonymous client: the hash of the IP address (SHA-256 of the IP, first 16 bytes, as 32 hex characters). The hash is stored in the `uploaded_by` column of that client's files, so it can be read from the database.
+- For an API key client: the SHA-256 of the key, 64 hex characters, for example `printf %s "$KEY" | shasum -a 256`. It is the `key` column of `api_keys` and the `uploaded_by` column of the client's files.
+- For an anonymous client: the HMAC of the IP address (HMAC-SHA-256 with `IP_HASH_KEY`, first 16 bytes, as 32 hex characters). It is stored in the `uploaded_by` column of that client's files, so it can be read from the database.
 
 Response, status `200`: `{"message": "Rate limit reset successfully", "user_id": "..."}`.

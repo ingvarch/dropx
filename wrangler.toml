@@ -38,5 +38,6 @@ new_sqlite_classes = ["RateLimiter"]
 [triggers]
 crons = ["0 2 * * *"]
 
-# Secrets (set via: wrangler secret put ADMIN_TOKEN)
+# Secrets (set via: wrangler secret put <NAME>)
 # ADMIN_TOKEN - Admin API authentication token
+# IP_HASH_KEY - key for the HMAC of client IPs (openssl rand -hex 32)

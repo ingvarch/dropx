@@ -1,15 +1,24 @@
+use hmac::{Hmac, KeyInit, Mac};
+use hmac::digest::InvalidLength;
 use sha2::{Digest, Sha256};
-use hex;
 use subtle::ConstantTimeEq;
 use worker::{Request, Env, Result, Response};
 use crate::utils::response::unauthorized;
-use crate::utils::constants::{HASH_TRUNCATE_BYTES, HEADER_ADMIN_TOKEN};
+use crate::utils::constants::{ENV_IP_HASH_KEY, HASH_TRUNCATE_BYTES, HEADER_ADMIN_TOKEN};
 
-pub fn hash_identifier(identifier: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(identifier.as_bytes());
-    let result = hasher.finalize();
-    hex::encode(&result[..HASH_TRUNCATE_BYTES])
+pub fn hash_secret(value: &str) -> String {
+    hex::encode(Sha256::digest(value.as_bytes()))
+}
+
+pub fn hash_ip(ip: &str, key: &str) -> std::result::Result<String, InvalidLength> {
+    let mut mac = <Hmac<Sha256> as KeyInit>::new_from_slice(key.as_bytes())?;
+    mac.update(ip.as_bytes());
+    Ok(hex::encode(&mac.finalize().into_bytes()[..HASH_TRUNCATE_BYTES]))
+}
+
+pub fn client_id(env: &Env, ip: &str) -> Result<String> {
+    let key = env.secret(ENV_IP_HASH_KEY)?.to_string();
+    hash_ip(ip, &key).map_err(|e| worker::Error::RustError(e.to_string()))
 }
 
 pub fn generate_api_key() -> String {
@@ -78,27 +87,6 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_identifier_consistency() {
-        let id = "192.168.1.1";
-        let hash1 = hash_identifier(id);
-        let hash2 = hash_identifier(id);
-        assert_eq!(hash1, hash2);
-    }
-
-    #[test]
-    fn test_hash_identifier_known_vector() {
-        // NIST SHA-256("abc"), first 16 bytes
-        assert_eq!(hash_identifier("abc"), "ba7816bf8f01cfea414140de5dae2223");
-    }
-
-    #[test]
-    fn test_hash_identifier_uniqueness() {
-        let hash1 = hash_identifier("192.168.1.1");
-        let hash2 = hash_identifier("192.168.1.2");
-        assert_ne!(hash1, hash2);
-    }
-
-    #[test]
     fn test_generate_api_key() {
         let key = generate_api_key();
         assert!(key.starts_with("tfr_"));
@@ -110,37 +98,6 @@ mod tests {
         let key1 = generate_api_key();
         let key2 = generate_api_key();
         assert_ne!(key1, key2);
-    }
-
-    #[test]
-    fn test_hash_identifier_length() {
-        let hash = hash_identifier("test");
-        assert_eq!(hash.len(), HASH_TRUNCATE_BYTES * 2);
-    }
-
-    #[test]
-    fn test_hash_identifier_hex_format() {
-        let hash = hash_identifier("test");
-        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-
-    #[test]
-    fn test_hash_identifier_empty_string() {
-        let hash1 = hash_identifier("");
-        let hash2 = hash_identifier("");
-        assert_eq!(hash1, hash2);
-        assert_eq!(hash1.len(), HASH_TRUNCATE_BYTES * 2);
-    }
-
-    #[test]
-    fn test_hash_identifier_different_inputs() {
-        let hash1 = hash_identifier("user@example.com");
-        let hash2 = hash_identifier("admin@example.com");
-        let hash3 = hash_identifier("test@example.com");
-
-        assert_ne!(hash1, hash2);
-        assert_ne!(hash2, hash3);
-        assert_ne!(hash1, hash3);
     }
 
     #[test]
@@ -162,22 +119,24 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_identifier_special_characters() {
-        let hash1 = hash_identifier("test!@#$%");
-        let hash2 = hash_identifier("test!@#$%");
-        assert_eq!(hash1, hash2);
-
-        let hash3 = hash_identifier("test");
-        assert_ne!(hash1, hash3);
+    fn hash_secret_is_sha256_hex() {
+        assert_eq!(
+            hash_secret("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 
     #[test]
-    fn test_hash_identifier_no_input_leakage() {
-        let sensitive = "secret_password_123";
-        let hash = hash_identifier(sensitive);
+    fn hash_ip_is_truncated_hmac_sha256() {
+        // RFC 4231 test case 2, first 16 bytes
+        assert_eq!(
+            hash_ip("what do ya want for nothing?", "Jefe").unwrap(),
+            "5bdcc146bf60754e6a042426089575c7"
+        );
+    }
 
-        assert!(!hash.contains("secret"));
-        assert!(!hash.contains("password"));
-        assert!(!hash.contains("123"));
+    #[test]
+    fn hash_ip_depends_on_the_key() {
+        assert_ne!(hash_ip("192.168.1.1", "key one").unwrap(), hash_ip("192.168.1.1", "key two").unwrap());
     }
 }

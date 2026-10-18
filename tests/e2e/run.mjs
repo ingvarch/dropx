@@ -39,13 +39,14 @@ function run(command, args, env = process.env) {
   });
 }
 
-function startWorker(stateDir, port, adminToken) {
+function startWorker(stateDir, port, adminToken, ipHashKey) {
   const args = [
     'dev',
     '--ip', HOST,
     '--port', String(port),
     '--persist-to', stateDir,
     '--var', `ADMIN_TOKEN:${adminToken}`,
+    '--var', `IP_HASH_KEY:${ipHashKey}`,
     '--show-interactive-dev-session=false',
   ];
   // Own process group, so stopping it also stops workerd.
@@ -91,6 +92,7 @@ function startWorker(stateDir, port, adminToken) {
 async function main() {
   const stateDir = mkdtempSync(join(tmpdir(), 'dropx-e2e-'));
   const adminToken = randomBytes(16).toString('hex');
+  const ipHashKey = randomBytes(32).toString('hex');
   let worker;
 
   const cleanUp = () => rmSync(stateDir, { recursive: true, force: true, maxRetries: 3 });
@@ -110,10 +112,10 @@ async function main() {
       return migrated;
     }
 
-    worker = startWorker(stateDir, await freePort(), adminToken);
+    worker = startWorker(stateDir, await freePort(), adminToken, ipHashKey);
     const url = await worker.ready;
 
-    const env = { ...process.env, DROPX_URL: url, DROPX_ADMIN_TOKEN: adminToken };
+    const env = { ...process.env, DROPX_URL: url, DROPX_ADMIN_TOKEN: adminToken, DROPX_IP_HASH_KEY: ipHashKey };
     const testArgs = ['--test', '--test-reporter=spec', `--test-timeout=${TEST_TIMEOUT_MS}`, TEST_FILES];
     const code = await run(process.execPath, testArgs, env);
     if (code !== 0) {

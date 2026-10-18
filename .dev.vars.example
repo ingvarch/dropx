@@ -3,3 +3,4 @@
 # .dev.vars is automatically gitignored and used by wrangler dev
 
 ADMIN_TOKEN=your-admin-token-here
+IP_HASH_KEY=your-random-hex-here

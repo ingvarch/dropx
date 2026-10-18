@@ -16,7 +16,7 @@ A client is anonymous when the request has no `X-API-Key` header. API keys are c
 
 Only uploads count. Downloads, info and delete requests are not limited.
 
-- Who is counted: an API key is counted by the key. An anonymous client is counted by a hash of its IP address (`CF-Connecting-IP`). Requests without that header share one anonymous counter.
+- Who is counted: an API key is counted by its SHA-256 hash. An anonymous client is counted by a keyed hash (HMAC) of its IP address (`CF-Connecting-IP`). Requests without that header share one anonymous counter.
 - Windows: each client has an hourly and a daily counter. A counter starts when the first upload arrives after the previous window ended, and resets one hour (or one day) later. The windows are not aligned to the clock.
 - Both counters are checked. A rejected request does not add to the counters.
 - The headers are validated before the check, and the body is read after it. An upload rejected with `400` does not use the counters. An upload that later fails with `413` still uses one upload from each counter.

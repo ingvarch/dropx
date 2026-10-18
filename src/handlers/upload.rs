@@ -1,7 +1,7 @@
 use worker::{console_log, Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService, RateLimitCheck};
-use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, hash_identifier, current_timestamp};
+use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, client_id, hash_secret, current_timestamp};
 use crate::utils::constants::{
     ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
@@ -58,11 +58,12 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let api_key = req.headers().get(HEADER_API_KEY)?;
 
     let (user_id, tier) = if let Some(key) = &api_key {
-        match DatabaseService::get_api_key(&env, key).await? {
+        let key_hash = hash_secret(key);
+        match DatabaseService::get_api_key(&env, &key_hash).await? {
             Some(api_key_data) if api_key_data.is_active => {
                 let now = current_timestamp();
-                let _ = DatabaseService::update_api_key_last_used(&env, key, now).await;
-                (key.clone(), Some(api_key_data.tier))
+                let _ = DatabaseService::update_api_key_last_used(&env, &key_hash, now).await;
+                (key_hash, Some(api_key_data.tier))
             }
             _ => {
                 return unauthorized(ERR_INVALID_API_KEY, "The provided API key is invalid or inactive");
@@ -73,7 +74,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
             .headers()
             .get(HEADER_CF_CONNECTING_IP)?
             .unwrap_or_else(|| UNKNOWN_IP_ADDRESS.to_string());
-        (hash_identifier(&ip), None)
+        (client_id(&env, &ip)?, None)
     };
 
     let default_retention_days = tier
@@ -134,8 +135,8 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         created_at: now,
         expires_at,
         download_count: 0,
-        uploaded_by: user_id.to_string(),
-        delete_token: delete_token.clone(),
+        uploaded_by: user_id,
+        delete_token_hash: hash_secret(&delete_token),
         max_downloads,
     };
 

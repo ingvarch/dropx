@@ -27,6 +27,7 @@ pub const PREMIUM_HOURLY_LIMIT: usize = 1000;
 pub const PREMIUM_DAILY_LIMIT: usize = 5000;
 
 pub const HASH_TRUNCATE_BYTES: usize = 16;
+pub const ENV_IP_HASH_KEY: &str = "IP_HASH_KEY";
 pub const FILE_ID_UUID_BYTES: usize = 8;
 pub const MIN_MAGIC_BYTES_LENGTH: usize = 4;
 

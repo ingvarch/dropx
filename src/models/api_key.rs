@@ -8,7 +8,7 @@ use crate::utils::constants::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
-    pub key: String,
+    pub key_hash: String,
     pub user_email: Option<String>,
     pub created_at: i64,
     pub last_used_at: Option<i64>,

@@ -1,6 +1,7 @@
 use worker::{Request, Response, RouteContext, Result, console_log};
 use crate::services::{StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, get_required_param, not_found};
+use crate::utils::auth::hash_secret;
 use crate::utils::constants::HTTP_OK;
 
 const ERR_DELETE_TOKEN_REQUIRED: &str = "Delete token is required";
@@ -13,7 +14,7 @@ pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Respo
         return not_found("NotFound", "File not found");
     }
 
-    let deleted = DatabaseService::delete_file(&ctx.env, file_id, delete_token).await?;
+    let deleted = DatabaseService::delete_file_with_token(&ctx.env, file_id, &hash_secret(delete_token)).await?;
 
     if !deleted {
         return not_found("Unauthorized", "Invalid delete token");
