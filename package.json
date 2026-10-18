@@ -7,9 +7,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "test:e2e": "node tests/e2e/run.mjs"
+    "test:e2e": "bun tests/e2e/run.mjs"
   },
   "devDependencies": {
     "wrangler": "4.151.1"
-  }
+  },
+  "packageManager": "bun@1.4.3"
 }

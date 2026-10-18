@@ -29,13 +29,13 @@ Limits per tier are in [docs/limits.md](docs/limits.md). Public routes and optio
 
 ## Quick Start
 
-You need Rust with the `wasm32-unknown-unknown` target and Node.js, see [docs/development.md](docs/development.md#prerequisites).
+You need Rust with the `wasm32-unknown-unknown` target, Bun and Node.js, see [docs/development.md](docs/development.md#prerequisites).
 
 ```bash
-npm ci
+bun install
 cp .dev.vars.example .dev.vars
-npx wrangler d1 migrations apply dropx-db --local
-npx wrangler dev
+bunx wrangler d1 migrations apply dropx-db --local
+bunx wrangler dev
 curl --upload-file ./file.txt http://localhost:8787/file.txt
 ```
 

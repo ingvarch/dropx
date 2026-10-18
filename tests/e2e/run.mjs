@@ -15,7 +15,7 @@ const HOST = '127.0.0.1';
 const READY_TIMEOUT_MS = 10 * 60 * 1000;
 const STOP_TIMEOUT_MS = 10 * 1000;
 const TEST_TIMEOUT_MS = 30 * 1000;
-const TEST_FILES = 'tests/e2e/**/*.test.mjs';
+const TEST_DIR = 'tests/e2e';
 const STOP_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
 function freePort() {
@@ -116,8 +116,7 @@ async function main() {
     const url = await worker.ready;
 
     const env = { ...process.env, DROPX_URL: url, DROPX_ADMIN_TOKEN: adminToken, DROPX_IP_HASH_KEY: ipHashKey };
-    const testArgs = ['--test', '--test-reporter=spec', `--test-timeout=${TEST_TIMEOUT_MS}`, TEST_FILES];
-    const code = await run(process.execPath, testArgs, env);
+    const code = await run(process.execPath, ['test', `--timeout=${TEST_TIMEOUT_MS}`, TEST_DIR], env);
     if (code !== 0) {
       console.error('\n--- wrangler dev output ---\n' + worker.output());
     }

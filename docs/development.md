@@ -11,13 +11,15 @@ Local setup, checks and project layout. To put the service on Cloudflare, see [d
   rustup target add wasm32-unknown-unknown
   ```
 
-- Node.js 22 or newer. `wrangler` is a dev dependency of the project; install it with:
+- [Bun](https://bun.sh) for the dependencies, the scripts and the e2e tests. `wrangler` is a dev dependency of the project; install it with:
 
   ```bash
-  npm ci
+  bun install
   ```
 
-  The commands below run it with `npx wrangler`.
+  The commands below run it with `bunx wrangler`.
+
+- Node.js 22 or newer: `wrangler` runs on it.
 
 - `worker-build`. The build command in `wrangler.toml` installs it and builds the Worker, so `wrangler dev` and `wrangler deploy` need no extra step.
 
@@ -36,7 +38,7 @@ cp .dev.vars.example .dev.vars
 Apply the migrations from `migrations/` to the local D1 database:
 
 ```bash
-npx wrangler d1 migrations apply dropx-db --local
+bunx wrangler d1 migrations apply dropx-db --local
 ```
 
 Local R2, D1 and Durable Object data lives in `.wrangler/state`, which is ignored by git.
@@ -44,7 +46,7 @@ Local R2, D1 and Durable Object data lives in `.wrangler/state`, which is ignore
 ## Run
 
 ```bash
-npx wrangler dev
+bunx wrangler dev
 ```
 
 The Worker listens on `http://localhost:8787`.
@@ -71,10 +73,10 @@ cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
 cargo check
 cargo test
-npm run test:e2e
+bun run test:e2e
 ```
 
-`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It generates a random `ADMIN_TOKEN` and `IP_HASH_KEY` for the run and does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
+`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `bun run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with `bun test` and stops the Worker. It generates a random `ADMIN_TOKEN` and `IP_HASH_KEY` for the run and does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
 
 GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 
@@ -125,6 +127,7 @@ dropx/
 ├── .github/workflows/ci.yml    # Checks on pull requests and main
 ├── Cargo.toml
 ├── package.json                # wrangler and the e2e test script
+├── bun.lock                    # Locked dev dependency versions
 ├── wrangler.toml               # Bindings, cron trigger, build command
 ├── .dev.vars.example           # Template for local secrets
 └── AGENTS.md                   # Instructions for coding agents
