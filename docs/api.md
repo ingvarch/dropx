@@ -129,6 +129,7 @@ Delete also works on a file past `expires_at` that the cleanup job has not remov
 | 200 | `{"success": true, "message": "File deleted successfully"}` |
 | 404 | `error` is `NotFound` (no such file) |
 | 404 | `error` is `Unauthorized` (wrong token) |
+| 500 | Plain text (see [Error format](#error-format)). The object could not be deleted from storage; the file is kept, retry the request |
 
 ## Landing page
 

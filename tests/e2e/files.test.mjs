@@ -226,6 +226,28 @@ test('the cleanup job keeps the row of a file whose R2 delete failed', async () 
   assert.equal(await fileRowExists(rejectedKey), true, 'row of failed R2 delete removed');
 });
 
+// A row left behind by a failed removal after the last allowed download.
+test('a file whose download limit is used up is not served again', async () => {
+  const file = await uploadOk('once only', { headers: { 'Max-Downloads': '1' } });
+  await d1Raw('UPDATE files SET download_count = 1 WHERE id = ?1', [file.id]);
+
+  for (const path of [`/${file.id}`, `/get/${file.id}`, `/inline/${file.id}`, `/${file.id}/info`]) {
+    assert.equal((await request(path)).status, 404, path);
+  }
+});
+
+test('delete keeps the row of a file whose R2 delete failed', async () => {
+  const file = await uploadOk('r'.repeat(500 + Math.floor(Math.random() * 1000)));
+  const token = pathOf(file.delete_url).split('/')[2];
+  const rejectedKey = 'd'.repeat(1100);
+  await renameExpiredFile(file.id, rejectedKey, Math.floor(Date.now() / 1000) + 3600);
+
+  const deleted = await request(`/${rejectedKey}/${token}`, { method: 'DELETE' });
+
+  assert.equal(deleted.status, 500);
+  assert.equal(await fileRowExists(rejectedKey), true, 'row removed although its R2 delete failed');
+});
+
 test('expires_at is the retention period after the upload', async () => {
   const before = Math.floor(Date.now() / 1000);
   const file = await uploadOk('hello');

@@ -1,5 +1,5 @@
 use worker::{Request, Response, RouteContext, Result, Headers, console_log};
-use crate::services::{StorageService, DatabaseService};
+use crate::services::{remove_file, StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
 use crate::utils::content_disposition::{get_content_disposition, DispositionType};
 use crate::utils::constants::{
@@ -38,17 +38,15 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
         }
     };
 
-    let _ = DatabaseService::increment_download_count(&ctx.env, file_id).await;
+    if let Err(e) = DatabaseService::increment_download_count(&ctx.env, file_id).await {
+        console_log!("Failed to count download of {}: {:?}", file_id, e);
+    }
 
     if let Some(max_downloads) = file_metadata.max_downloads {
         let new_download_count = file_metadata.download_count + 1;
         if new_download_count >= max_downloads {
-            if let Err(e) = StorageService::delete_file(&bucket, file_id).await {
-                console_log!("Failed to delete file from R2 after max downloads: {:?}", e);
-            }
-
-            if let Err(e) = DatabaseService::delete_files(&ctx.env, &[file_id.to_string()]).await {
-                console_log!("Failed to delete file from database after max downloads: {:?}", e);
+            if let Err(e) = remove_file(&ctx.env, &bucket, file_id).await {
+                console_log!("Failed to remove file after max downloads: {:?}", e);
             }
         }
     }
