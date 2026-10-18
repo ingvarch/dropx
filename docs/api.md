@@ -63,7 +63,7 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 | 400 | `Max-Age-Days` is 0 or negative, or above the tier maximum | JSON, `error` is `Invalid retention period` |
 | 401 | `X-API-Key` is unknown or revoked | JSON, `error` is `Invalid API key` |
 | 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes |
-| 429 | Hourly or daily upload limit reached | Plain text `Rate limit exceeded` |
+| 429 | Hourly or daily upload limit reached | JSON, `error` is `Rate limit exceeded`, `message` names the window (`Hourly rate limit exceeded` or `Daily rate limit exceeded`). The `Retry-After` header holds the seconds until the window resets |
 
 ## Download
 
@@ -140,4 +140,4 @@ Errors from the handlers are JSON:
 { "error": "File not found", "message": "The requested file does not exist or has expired" }
 ```
 
-Exceptions: the `429` response is plain text; a path that exists for another method returns plain-text `405 Method Not Allowed`; unknown routes return plain-text `404 Not Found`; internal failures (database, storage, missing `ADMIN_TOKEN`) return plain-text `500`.
+Exceptions: a path that exists for another method returns plain-text `405 Method Not Allowed`; unknown routes return plain-text `404 Not Found`; internal failures (database, storage, rate limiter, missing `ADMIN_TOKEN`) return plain-text `500`.
