@@ -1,16 +1,16 @@
 use worker::{Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
-use crate::services::{StorageService, DatabaseService, RateLimiterService};
+use crate::services::{StorageService, DatabaseService, RateLimiterService, RateLimitCheck};
 use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, hash_identifier, current_timestamp};
 use crate::utils::constants::{
     ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
-    HEADER_API_KEY, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
+    HEADER_API_KEY, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
     HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE, HTTP_BAD_REQUEST,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, ERR_INVALID_RETENTION,
     UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
-use crate::utils::response::unauthorized;
+use crate::utils::response::{error_response, unauthorized};
 
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
@@ -36,8 +36,12 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         (hash_identifier(&ip), None)
     };
 
-    if RateLimiterService::check_limit(&env, &user_id, tier).await.is_err() {
-        return Response::error(ERR_RATE_LIMIT_EXCEEDED, HTTP_TOO_MANY_REQUESTS);
+    if let RateLimitCheck::Limited { retry_after, message } =
+        RateLimiterService::check_limit(&env, &user_id, tier).await?
+    {
+        let mut response = error_response(ERR_RATE_LIMIT_EXCEEDED, &message, HTTP_TOO_MANY_REQUESTS)?;
+        response.headers_mut().set(HEADER_RETRY_AFTER, &retry_after.to_string())?;
+        return Ok(response);
     }
 
     let body = req.bytes().await?;

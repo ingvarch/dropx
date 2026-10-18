@@ -15,6 +15,43 @@ struct RateLimitCounts {
     day_reset_at: u64,
 }
 
+fn reset_finished_windows(counts: &mut RateLimitCounts, now: u64) {
+    if now >= counts.hour_reset_at {
+        counts.hourly = 0;
+        counts.hour_reset_at = now + MILLIS_PER_HOUR;
+    }
+
+    if now >= counts.day_reset_at {
+        counts.daily = 0;
+        counts.day_reset_at = now + MILLIS_PER_DAY;
+    }
+}
+
+fn retry_after_seconds(reset_at: u64, now: u64) -> u64 {
+    (reset_at - now).div_ceil(MILLIS_PER_SECOND).max(1)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum LimitDecision {
+    Allowed,
+    Limited { retry_after: u64, message: &'static str },
+}
+
+fn decide_limit(counts: &RateLimitCounts, hourly_limit: u32, daily_limit: u32, now: u64) -> LimitDecision {
+    let windows = [
+        (counts.hourly >= hourly_limit, counts.hour_reset_at, "Hourly rate limit exceeded"),
+        (counts.daily >= daily_limit, counts.day_reset_at, "Daily rate limit exceeded"),
+    ];
+    windows
+        .into_iter()
+        .filter(|(full, _, _)| *full)
+        .max_by_key(|(_, reset_at, _)| *reset_at)
+        .map_or(LimitDecision::Allowed, |(_, reset_at, message)| LimitDecision::Limited {
+            retry_after: retry_after_seconds(reset_at, now),
+            message,
+        })
+}
+
 #[durable_object]
 pub struct RateLimiter {
     state: State,
@@ -51,8 +88,7 @@ impl DurableObject for RateLimiter {
 }
 
 impl RateLimiter {
-    fn rate_limit_response(message: &str, reset_at: u64, now: u64) -> Result<Response> {
-        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
+    fn rate_limit_response(message: &str, retry_after: u64) -> Result<Response> {
         let headers = Headers::new();
         headers.set(HEADER_RETRY_AFTER, &retry_after.to_string())?;
         Ok(Response::error(message, HTTP_TOO_MANY_REQUESTS)?.with_headers(headers))
@@ -67,23 +103,10 @@ impl RateLimiter {
             .unwrap_or_default();
 
         let now = Date::now().as_millis();
+        reset_finished_windows(&mut counts, now);
 
-        if now > counts.hour_reset_at {
-            counts.hourly = 0;
-            counts.hour_reset_at = now + MILLIS_PER_HOUR;
-        }
-
-        if now > counts.day_reset_at {
-            counts.daily = 0;
-            counts.day_reset_at = now + MILLIS_PER_DAY;
-        }
-
-        if counts.hourly >= hourly_limit {
-            return Self::rate_limit_response("Hourly rate limit exceeded", counts.hour_reset_at, now);
-        }
-
-        if counts.daily >= daily_limit {
-            return Self::rate_limit_response("Daily rate limit exceeded", counts.day_reset_at, now);
+        if let LimitDecision::Limited { retry_after, message } = decide_limit(&counts, hourly_limit, daily_limit, now) {
+            return Self::rate_limit_response(message, retry_after);
         }
 
         counts.hourly += 1;
@@ -150,19 +173,40 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_after_calculation() {
-        let now: u64 = 1000000;
-        let reset_at: u64 = 3600000;
-        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
-        assert_eq!(retry_after, 2600);
+    fn windows_reset_when_the_reset_time_is_reached() {
+        let mut counts = RateLimitCounts { hourly: 10, daily: 25, hour_reset_at: 5_000, day_reset_at: 5_000 };
+
+        reset_finished_windows(&mut counts, 5_000);
+
+        assert_eq!((counts.hourly, counts.daily), (0, 0));
+        assert_eq!(counts.hour_reset_at, 5_000 + MILLIS_PER_HOUR);
+        assert_eq!(counts.day_reset_at, 5_000 + MILLIS_PER_DAY);
     }
 
     #[test]
-    fn test_retry_after_calculation_near_boundary() {
-        let now: u64 = 1003599500;
-        let reset_at: u64 = 1003600000;
-        let retry_after = ((reset_at - now) / MILLIS_PER_SECOND) as i64;
-        assert_eq!(retry_after, 0);
+    fn windows_before_the_reset_time_keep_their_counts() {
+        let mut counts = RateLimitCounts { hourly: 10, daily: 25, hour_reset_at: 5_000, day_reset_at: 9_000 };
+
+        reset_finished_windows(&mut counts, 4_999);
+
+        assert_eq!((counts.hourly, counts.daily), (10, 25));
+        assert_eq!((counts.hour_reset_at, counts.day_reset_at), (5_000, 9_000));
+    }
+
+    #[test]
+    fn retry_after_is_whole_seconds_on_exact_boundary() {
+        assert_eq!(retry_after_seconds(3_600_000, 1_000_000), 2600);
+    }
+
+    #[test]
+    fn retry_after_rounds_sub_second_remainder_up() {
+        assert_eq!(retry_after_seconds(1_003_600_000, 1_003_599_500), 1);
+        assert_eq!(retry_after_seconds(3_600_001, 1_000_000), 2601);
+    }
+
+    #[test]
+    fn retry_after_is_at_least_one_second() {
+        assert_eq!(retry_after_seconds(1_000_000, 1_000_000), 1);
     }
 
     #[test]
@@ -274,5 +318,45 @@ mod tests {
 
         assert!(!should_reset_hourly);
         assert!(!should_reset_daily);
+    }
+
+    const NOW: u64 = 1_000_000;
+
+    fn counts(hourly: u32, daily: u32, hour_reset_at: u64, day_reset_at: u64) -> RateLimitCounts {
+        RateLimitCounts { hourly, daily, hour_reset_at, day_reset_at }
+    }
+
+    fn limited(retry_after: u64, message: &'static str) -> LimitDecision {
+        LimitDecision::Limited { retry_after, message }
+    }
+
+    #[test]
+    fn decision_allows_when_no_window_is_full() {
+        let decision = decide_limit(&counts(9, 24, NOW + 3_600_000, NOW + 86_400_000), 10, 25, NOW);
+        assert_eq!(decision, LimitDecision::Allowed);
+    }
+
+    #[test]
+    fn decision_names_hourly_when_only_hourly_is_full() {
+        let decision = decide_limit(&counts(10, 5, NOW + 3_600_000, NOW + 86_400_000), 10, 25, NOW);
+        assert_eq!(decision, limited(3600, "Hourly rate limit exceeded"));
+    }
+
+    #[test]
+    fn decision_names_daily_when_only_daily_is_full() {
+        let decision = decide_limit(&counts(3, 25, NOW + 3_600_000, NOW + 86_400_000), 10, 25, NOW);
+        assert_eq!(decision, limited(86_400, "Daily rate limit exceeded"));
+    }
+
+    #[test]
+    fn decision_waits_for_the_day_when_both_are_full_and_day_resets_later() {
+        let decision = decide_limit(&counts(10, 25, NOW + 3_600_000, NOW + 86_400_000), 10, 25, NOW);
+        assert_eq!(decision, limited(86_400, "Daily rate limit exceeded"));
+    }
+
+    #[test]
+    fn decision_waits_for_the_hour_when_both_are_full_and_hour_resets_later() {
+        let decision = decide_limit(&counts(10, 25, NOW + 7_200_000, NOW + 3_600_000), 10, 25, NOW);
+        assert_eq!(decision, limited(7200, "Hourly rate limit exceeded"));
     }
 }

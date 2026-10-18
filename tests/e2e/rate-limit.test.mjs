@@ -16,15 +16,6 @@ async function reachLimit(ip) {
   assert.equal((await upload('over', { ip })).status, 429);
 }
 
-test('anonymous client is limited to 10 uploads per hour', async () => {
-  const ip = newClientIp();
-  await uploadTimes(ANON_HOURLY_LIMIT, ip);
-
-  const limited = await upload('over', { ip });
-
-  assert.equal(limited.status, 429);
-});
-
 test('limits are counted per client', async () => {
   await reachLimit(newClientIp());
 
@@ -39,4 +30,17 @@ test('admin reset clears the counters of one client', async () => {
 
   assert.equal(reset.status, 200);
   assert.equal((await upload('again', { ip })).status, 200);
+});
+
+test('anonymous client is limited to 10 uploads per hour and told when to retry', async () => {
+  const ip = newClientIp();
+  await uploadTimes(ANON_HOURLY_LIMIT, ip);
+
+  const limited = await upload('over', { ip });
+
+  assert.equal(limited.status, 429);
+  const retryAfter = limited.headers.get('Retry-After');
+  assert.match(retryAfter, /^\d+$/);
+  assert.ok(Number(retryAfter) >= 1 && Number(retryAfter) <= 3600, `Retry-After: ${retryAfter}`);
+  assert.deepEqual(await limited.json(), { error: 'Rate limit exceeded', message: 'Hourly rate limit exceeded' });
 });

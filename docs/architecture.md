@@ -15,7 +15,7 @@ Code layout is in [development.md](development.md#project-structure). The router
 ## Upload flow
 
 1. If `X-API-Key` is present, look the key up in D1. An unknown or revoked key returns `401`. Otherwise the client is identified by a hash of `CF-Connecting-IP`.
-2. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`.
+2. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
 3. Read the whole body into memory and check the size against the tier. Too large returns `413`.
 4. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
 5. Detect the MIME type from the first bytes, then from the file name.
