@@ -9,8 +9,7 @@ pub async fn handle_delete(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     let file_id = get_file_id_param(&ctx)?;
     let delete_token = get_required_param(&ctx, "token", ERR_DELETE_TOKEN_REQUIRED)?;
 
-    let metadata = DatabaseService::get_file(&ctx.env, file_id).await?;
-    if metadata.is_none() {
+    if !DatabaseService::file_exists(&ctx.env, file_id).await? {
         return not_found("NotFound", "File not found");
     }
 

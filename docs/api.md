@@ -87,7 +87,7 @@ Every download request adds one to the counter. When the counter reaches `Max-Do
 
 The file is read before it is deleted, so the download that reaches the limit succeeds. The next request returns `404`.
 
-Expiry is enforced by the daily cleanup job, not on each request. A file stays downloadable until the job removes it. See [architecture.md](architecture.md#cleanup-job).
+A file is available while the current time is before `expires_at`. After that, the download routes and `/:id/info` return `404`, `File not found`, as for an unknown ID. [Delete](#delete) still works until the daily cleanup job removes the file. See [architecture.md](architecture.md#cleanup-job).
 
 ### Errors
 
@@ -121,6 +121,8 @@ Unknown ID: `404`, `error` is `File not found`.
 ## Delete
 
 `DELETE /:id/:token` needs no API key. The token is the last part of `delete_url`.
+
+Delete also works on a file past `expires_at` that the cleanup job has not removed yet.
 
 | Status | Body |
 |--------|------|

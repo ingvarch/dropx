@@ -92,13 +92,20 @@ impl DatabaseService {
 
     pub async fn get_file(env: &worker::Env, file_id: &str) -> Result<Option<FileMetadata>> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("SELECT * FROM files WHERE id = ?1");
-        let query = statement.bind(&[file_id.into()])?;
+        let statement = d1.prepare("SELECT * FROM files WHERE id = ?1 AND expires_at > ?2");
+        let query = statement.bind(&[file_id.into(), (current_timestamp() as f64).into()])?;
 
         match query.first::<FileRow>(None).await? {
             Some(row) => Ok(Some(row.into())),
             None => Ok(None),
         }
+    }
+
+    pub async fn file_exists(env: &worker::Env, file_id: &str) -> Result<bool> {
+        let d1 = Self::get_db(env)?;
+        let statement = d1.prepare("SELECT id FROM files WHERE id = ?1");
+        let query = statement.bind(&[file_id.into()])?;
+        Ok(query.first::<FileIdResult>(None).await?.is_some())
     }
 
     pub async fn increment_download_count(env: &worker::Env, file_id: &str) -> Result<()> {

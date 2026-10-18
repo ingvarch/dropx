@@ -74,3 +74,22 @@ export async function listR2ObjectSizes() {
   } while (cursor);
   return sizes;
 }
+
+const D1_EXPLORER_API = '/cdn-cgi/local/explorer/api/d1/database';
+
+// Sets expires_at of a file in the local D1 through the Local Explorer API. The API accepts string params only.
+export async function setExpiresAt(fileId, expiresAt) {
+  const { result } = await explorerJson(D1_EXPLORER_API);
+  assert.equal(result.length, 1, 'expected one D1 database');
+  const response = await fetch(new URL(`${D1_EXPLORER_API}/${result[0].uuid}/raw`, BASE_URL), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sql: 'UPDATE files SET expires_at = ?1 WHERE id = ?2',
+      params: [String(expiresAt), fileId],
+    }),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  const [{ meta }] = (await response.json()).result;
+  assert.equal(meta.changes, 1, 'expected one updated row');
+}

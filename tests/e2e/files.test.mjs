@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { listR2ObjectSizes, pathOf, request, upload, uploadOk } from './helpers.mjs';
+import { listR2ObjectSizes, pathOf, request, setExpiresAt, upload, uploadOk } from './helpers.mjs';
 
 test('upload returns the file id, size, expiry and links', async () => {
   const file = await uploadOk('hello', { filename: 'hello.txt' });
@@ -119,4 +119,35 @@ test('a rejected upload leaves no object in R2', async () => {
 
   assert.equal(response.status, 400);
   assert.ok(!(await listR2ObjectSizes()).includes(uniqueSize), 'object left in R2');
+});
+
+const READ_ROUTES = [
+  ['download', (id) => `/${id}`],
+  ['/get', (id) => `/get/${id}`],
+  ['/inline', (id) => `/inline/${id}`],
+  ['info', (id) => `/${id}/info`],
+];
+
+for (const [name, pathFor] of READ_ROUTES) {
+  test(`${name} returns 404 once the file has expired`, async () => {
+    const file = await uploadOk('hello');
+    await setExpiresAt(file.id, Math.floor(Date.now() / 1000) - 1);
+
+    const response = await request(pathFor(file.id));
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).error, 'File not found');
+  });
+}
+
+test('delete with the delete token still removes an expired file and its object', async () => {
+  const body = 'x'.repeat(1000 + Math.floor(Math.random() * 100000));
+  const file = await uploadOk(body);
+  await setExpiresAt(file.id, Math.floor(Date.now() / 1000) - 1);
+
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE' });
+
+  assert.equal(deleted.status, 200);
+  assert.equal((await deleted.json()).success, true);
+  assert.ok(!(await listR2ObjectSizes()).includes(body.length), 'object left in R2');
 });
