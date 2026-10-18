@@ -126,11 +126,7 @@ impl DatabaseService {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("DELETE FROM files WHERE id = ?1 AND delete_token = ?2");
         let result = statement.bind(&[file_id.into(), delete_token.into()])?.run().await?;
-
-        match result.meta()? {
-            Some(meta) => Ok(meta.changes.unwrap_or(0) > 0),
-            None => Ok(false),
-        }
+        rows_matched(result.meta()?)
     }
 
     pub async fn get_expired_file_ids(env: &worker::Env) -> Result<Vec<String>> {
