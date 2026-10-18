@@ -104,7 +104,7 @@ Expired files are already unavailable before this job runs: the download and inf
 What the code does:
 
 - IP addresses are hashed with SHA-256 (first 16 bytes, hex) before they are used as the rate limit key or stored in `uploaded_by`. The hash is not salted.
-- Admin routes need `X-Admin-Token` equal to the `ADMIN_TOKEN` secret.
+- Admin routes need `X-Admin-Token` equal to the `ADMIN_TOKEN` secret. Both values are hashed with SHA-256 and the digests are compared in constant time, so response time does not reveal how much of a guess is right or how long the secret is.
 - Deleting needs the delete token that only the uploader receives.
 - Anyone who knows a file ID can download it. There is no per-file access control.
 - Files are stored as uploaded. The service does not encrypt them. The landing page shows how to encrypt with GPG or OpenSSL before upload.
