@@ -77,7 +77,7 @@ export async function listR2ObjectSizes() {
 
 const D1_EXPLORER_API = '/cdn-cgi/local/explorer/api/d1/database';
 
-async function d1Raw(sql, params) {
+export async function d1Raw(sql, params) {
   const { result } = await explorerJson(D1_EXPLORER_API);
   assert.equal(result.length, 1, 'expected one D1 database');
   const response = await fetch(new URL(`${D1_EXPLORER_API}/${result[0].uuid}/raw`, BASE_URL), {

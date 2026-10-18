@@ -1,4 +1,4 @@
-use worker::{Request, Response, RouteContext, Result};
+use worker::{console_log, Request, Response, RouteContext, Result};
 use crate::models::{FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService, RateLimitCheck};
 use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, hash_identifier, current_timestamp};
@@ -137,7 +137,12 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         max_downloads,
     };
 
-    DatabaseService::insert_file(&env, &file_metadata).await?;
+    if let Err(insert_error) = DatabaseService::insert_file(&env, &file_metadata).await {
+        if let Err(delete_error) = StorageService::delete_file(&bucket, &file_id).await {
+            console_log!("Failed to delete orphaned object {}: {}", file_id, delete_error);
+        }
+        return Err(insert_error);
+    }
 
     let url_obj = req.url()?;
     let host = url_obj.host_str().unwrap_or("localhost");
