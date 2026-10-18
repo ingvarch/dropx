@@ -49,8 +49,8 @@ curl --upload-file ./file.txt http://localhost:8787/file.txt
 
 ## License
 
-MIT
+[MIT](LICENSE)
 
-## Support
+## Contributing
 
-For issues and feature requests, please open an issue on GitHub.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems go through [SECURITY.md](SECURITY.md).
