@@ -126,25 +126,32 @@ impl DatabaseService {
         }
     }
 
-    pub async fn delete_expired_files(env: &worker::Env) -> Result<Vec<String>> {
+    pub async fn get_expired_file_ids(env: &worker::Env) -> Result<Vec<String>> {
         let d1 = Self::get_db(env)?;
-        let now = current_timestamp();
-
-        let select_stmt = d1.prepare("SELECT id FROM files WHERE expires_at < ?1");
-        let query = select_stmt.bind(&[(now as f64).into()])?;
+        let statement = d1.prepare("SELECT id FROM files WHERE expires_at <= ?1");
+        let query = statement.bind(&[(current_timestamp() as f64).into()])?;
         let results = query.all().await?;
-        let file_ids: Vec<String> = results
-            .results::<FileIdResult>()?
-            .iter()
-            .map(|r| r.id.clone())
-            .collect();
 
-        if !file_ids.is_empty() {
-            let delete_stmt = d1.prepare("DELETE FROM files WHERE expires_at < ?1");
-            delete_stmt.bind(&[(now as f64).into()])?.run().await?;
+        Ok(results
+            .results::<FileIdResult>()?
+            .into_iter()
+            .map(|r| r.id)
+            .collect())
+    }
+
+    pub async fn delete_files(env: &worker::Env, file_ids: &[String]) -> Result<()> {
+        if file_ids.is_empty() {
+            return Ok(());
         }
 
-        Ok(file_ids)
+        let d1 = Self::get_db(env)?;
+        let statements = file_ids
+            .iter()
+            .map(|id| d1.prepare("DELETE FROM files WHERE id = ?1").bind(&[id.into()]))
+            .collect::<Result<Vec<_>>>()?;
+        d1.batch(statements).await?;
+
+        Ok(())
     }
 
     pub async fn insert_api_key(

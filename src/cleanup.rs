@@ -1,10 +1,11 @@
+use std::future::Future;
 use worker::{console_log, Env, Result};
 use crate::services::{DatabaseService, StorageService};
 
 pub async fn run_cleanup(env: &Env) -> Result<()> {
     console_log!("Starting cleanup job...");
 
-    let file_ids = DatabaseService::delete_expired_files(env).await?;
+    let file_ids = DatabaseService::get_expired_file_ids(env).await?;
 
     console_log!("Found {} expired files", file_ids.len());
 
@@ -14,123 +15,104 @@ pub async fn run_cleanup(env: &Env) -> Result<()> {
     }
 
     let bucket = StorageService::get_bucket(env)?;
-    let mut deleted_count = 0;
+    let outcome = delete_objects(&file_ids, |file_id| {
+        let bucket = &bucket;
+        async move { StorageService::delete_file(bucket, &file_id).await }
+    })
+    .await;
 
-    for file_id in &file_ids {
-        match StorageService::delete_file(&bucket, file_id).await {
-            Ok(_) => {
-                console_log!("Deleted from R2: {}", file_id);
-                deleted_count += 1;
-            }
-            Err(e) => {
-                console_log!("Failed to delete from R2: {} - {:?}", file_id, e);
-            }
-        }
+    for failure in &outcome.failed {
+        console_log!("Failed to delete from R2: {} - {}", failure.file_id, failure.error);
     }
 
+    DatabaseService::delete_files(env, &outcome.deleted).await?;
+
     console_log!(
-        "Cleanup completed: {} files deleted from storage",
-        deleted_count
+        "Cleanup completed: {} files deleted, {} failed and will be retried",
+        outcome.deleted.len(),
+        outcome.failed.len()
     );
 
     Ok(())
 }
 
+#[derive(Debug, Default, PartialEq)]
+struct DeleteOutcome {
+    deleted: Vec<String>,
+    failed: Vec<FailedDelete>,
+}
+
+#[derive(Debug, PartialEq)]
+struct FailedDelete {
+    file_id: String,
+    error: String,
+}
+
+async fn delete_objects<F, Fut, E>(file_ids: &[String], mut delete: F) -> DeleteOutcome
+where
+    F: FnMut(String) -> Fut,
+    Fut: Future<Output = std::result::Result<(), E>>,
+    E: std::fmt::Debug,
+{
+    let mut outcome = DeleteOutcome::default();
+
+    for file_id in file_ids {
+        match delete(file_id.clone()).await {
+            Ok(()) => outcome.deleted.push(file_id.clone()),
+            Err(e) => outcome.failed.push(FailedDelete {
+                file_id: file_id.clone(),
+                error: format!("{e:?}"),
+            }),
+        }
+    }
+
+    outcome
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::pin::pin;
+    use std::task::{Context, Poll, Waker};
 
-    #[test]
-    fn test_cleanup_empty_list_handling() {
-        let file_ids: Vec<String> = vec![];
-        assert!(file_ids.is_empty());
-    }
-
-    #[test]
-    fn test_cleanup_counter_single_file() {
-        let mut deleted_count = 0;
-        let success = true;
-
-        if success {
-            deleted_count += 1;
+    fn block_on<T>(future: impl Future<Output = T>) -> T {
+        let mut future = pin!(future);
+        let mut context = Context::from_waker(Waker::noop());
+        match future.as_mut().poll(&mut context) {
+            Poll::Ready(value) => value,
+            Poll::Pending => panic!("future did not complete at once"),
         }
+    }
 
-        assert_eq!(deleted_count, 1);
+    fn ids(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
     }
 
     #[test]
-    fn test_cleanup_counter_multiple_files() {
-        let mut deleted_count = 0;
-        let results = vec![true, true, true];
+    fn delete_objects_reports_every_id_deleted_when_all_succeed() {
+        let outcome = block_on(delete_objects(&ids(&["a", "b"]), |_| async { Ok::<(), ()>(()) }));
 
-        for success in results {
-            if success {
-                deleted_count += 1;
-            }
-        }
-
-        assert_eq!(deleted_count, 3);
+        assert_eq!(outcome.deleted, ids(&["a", "b"]));
+        assert!(outcome.failed.is_empty());
     }
 
     #[test]
-    fn test_cleanup_partial_failure() {
-        let mut deleted_count = 0;
-        let results = vec![true, false, true];
+    fn delete_objects_keeps_a_failed_id_out_of_the_deleted_list() {
+        let outcome = block_on(delete_objects(&ids(&["a", "b", "c"]), |id| async move {
+            if id == "b" { Err("r2 unavailable") } else { Ok(()) }
+        }));
 
-        for success in results {
-            if success {
-                deleted_count += 1;
-            }
-        }
-
-        assert_eq!(deleted_count, 2);
+        assert_eq!(outcome.deleted, ids(&["a", "c"]));
+        assert_eq!(
+            outcome.failed,
+            vec![FailedDelete { file_id: "b".to_string(), error: "\"r2 unavailable\"".to_string() }]
+        );
     }
 
     #[test]
-    fn test_cleanup_all_failures() {
-        let mut deleted_count = 0;
-        let results = vec![false, false, false];
+    fn delete_objects_with_no_ids_deletes_nothing() {
+        let outcome = block_on(delete_objects(&[], |_| async { Ok::<(), ()>(()) }));
 
-        for success in results {
-            if success {
-                deleted_count += 1;
-            }
-        }
-
-        assert_eq!(deleted_count, 0);
-    }
-
-    #[test]
-    fn test_cleanup_file_id_iteration() {
-        let file_ids = vec![
-            "file1".to_string(),
-            "file2".to_string(),
-            "file3".to_string(),
-        ];
-
-        let mut processed = Vec::new();
-        for file_id in &file_ids {
-            processed.push(file_id.clone());
-        }
-
-        assert_eq!(processed.len(), 3);
-        assert_eq!(processed[0], "file1");
-        assert_eq!(processed[1], "file2");
-        assert_eq!(processed[2], "file3");
-    }
-
-    #[test]
-    fn test_cleanup_large_batch() {
-        let file_ids: Vec<String> = (0..1000).map(|i| format!("file_{}", i)).collect();
-        assert_eq!(file_ids.len(), 1000);
-    }
-
-    #[test]
-    fn test_cleanup_success_rate_calculation() {
-        let total = 10;
-        let deleted_count = 7;
-        let failed = total - deleted_count;
-
-        assert_eq!(failed, 3);
-        assert_eq!(deleted_count, 7);
+        assert_eq!(outcome, DeleteOutcome::default());
     }
 }
