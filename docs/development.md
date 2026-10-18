@@ -56,7 +56,7 @@ curl --upload-file ./file.txt http://localhost:8787/file.txt
 curl http://localhost:8787/<id> -o file.txt
 ```
 
-The `url` and `delete_url` in the upload response always start with `https://` and have no port, so replace them with `http://localhost:8787` when you use them locally.
+The `url` and `delete_url` in the upload response start with `http://localhost:8787`, so you can use them as they are.
 
 To run the cleanup job locally, with `wrangler dev` running:
 
@@ -111,6 +111,7 @@ dropx/
 │   │   ├── auth.rs             # secret and IP hashing, API key generation, admin token check
 │   │   ├── id_generator.rs     # File IDs and delete tokens
 │   │   ├── storage_path.rs     # R2 object paths
+│   │   ├── origin.rs           # Public origin from the Host header
 │   │   ├── mime.rs             # MIME type detection
 │   │   ├── content_disposition.rs
 │   │   ├── content_negotiation.rs

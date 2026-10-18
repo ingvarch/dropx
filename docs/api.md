@@ -54,7 +54,7 @@ Status `200`, `Content-Type: application/json`:
 }
 ```
 
-The delete URL is also sent in the `X-Url-Delete` response header. The upload response is the only place the delete token is shown; `/:id/info` does not return it. The URLs always use `https` and the request host without the port.
+The delete URL is also sent in the `X-Url-Delete` response header. The upload response is the only place the delete token is shown; `/:id/info` does not return it. The URLs use the `Host` of the request: `https` for public hosts, `http` and the port for `localhost` and `127.0.0.1`.
 
 ### Errors
 
