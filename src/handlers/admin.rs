@@ -60,7 +60,7 @@ pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Re
         })
     } else {
         use crate::utils::response::not_found;
-        not_found("API key not found", "The specified API key does not exist")
+        not_found("NotFound", "The specified API key does not exist")
     }
 }
 

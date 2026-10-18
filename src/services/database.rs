@@ -4,6 +4,13 @@ use crate::utils::constants::{DB_NAME, DB_BOOL_TRUE, DB_BOOL_FALSE};
 use crate::utils::current_timestamp;
 use serde::Deserialize;
 
+/// SQLite counts a matched row as changed even when the value stays the same.
+fn rows_matched(meta: Option<worker::D1ResultMeta>) -> Result<bool> {
+    meta.and_then(|meta| meta.changes)
+        .map(|changes| changes > 0)
+        .ok_or_else(|| worker::Error::RustError("D1 result has no changes count".to_string()))
+}
+
 pub struct DatabaseService;
 
 #[derive(Deserialize)]
@@ -208,8 +215,8 @@ impl DatabaseService {
     pub async fn revoke_api_key(env: &worker::Env, key: &str) -> Result<bool> {
         let d1 = Self::get_db(env)?;
         let statement = d1.prepare("UPDATE api_keys SET is_active = ?1 WHERE key = ?2");
-        statement.bind(&[(DB_BOOL_FALSE as f64).into(), key.into()])?.run().await?;
-        Ok(true)
+        let result = statement.bind(&[(DB_BOOL_FALSE as f64).into(), key.into()])?.run().await?;
+        rows_matched(result.meta()?)
     }
 
     pub async fn get_stats(env: &worker::Env) -> Result<StatsResponse> {
@@ -270,6 +277,26 @@ pub struct StatsResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn meta(json: &str) -> Option<worker::D1ResultMeta> {
+        Some(serde_json::from_str(json).unwrap())
+    }
+
+    #[test]
+    fn rows_matched_is_true_when_a_row_changed() {
+        assert!(rows_matched(meta(r#"{"changes": 1}"#)).unwrap());
+    }
+
+    #[test]
+    fn rows_matched_is_false_when_no_row_changed() {
+        assert!(!rows_matched(meta(r#"{"changes": 0}"#)).unwrap());
+    }
+
+    #[test]
+    fn rows_matched_fails_without_a_changes_count() {
+        assert!(rows_matched(meta("{}")).is_err());
+        assert!(rows_matched(None).is_err());
+    }
 
     #[test]
     fn test_file_row_to_metadata_conversion() {
