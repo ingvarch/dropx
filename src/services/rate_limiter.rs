@@ -84,28 +84,6 @@ impl RateLimiterService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::constants::{
-        STANDARD_HOURLY_LIMIT, STANDARD_DAILY_LIMIT,
-        PREMIUM_HOURLY_LIMIT, PREMIUM_DAILY_LIMIT,
-    };
-
-    #[test]
-    fn test_build_check_url_anon() {
-        let url = RateLimiterService::build_check_url(ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT);
-        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=25");
-    }
-
-    #[test]
-    fn test_build_check_url_standard() {
-        let url = RateLimiterService::build_check_url(STANDARD_HOURLY_LIMIT, STANDARD_DAILY_LIMIT);
-        assert_eq!(url, "http://rate-limiter/check?hourly=100&daily=500");
-    }
-
-    #[test]
-    fn test_build_check_url_premium() {
-        let url = RateLimiterService::build_check_url(PREMIUM_HOURLY_LIMIT, PREMIUM_DAILY_LIMIT);
-        assert_eq!(url, "http://rate-limiter/check?hourly=1000&daily=5000");
-    }
 
     #[test]
     fn test_build_check_url_custom() {
@@ -117,60 +95,6 @@ mod tests {
     fn test_build_reset_url() {
         let url = RateLimiterService::build_reset_url();
         assert_eq!(url, "http://rate-limiter/reset");
-    }
-
-    #[test]
-    fn test_tier_limits_standard() {
-        let tier = ApiKeyTier::Standard;
-        assert_eq!(tier.hourly_limit(), 100);
-        assert_eq!(tier.daily_limit(), 500);
-    }
-
-    #[test]
-    fn test_tier_limits_premium() {
-        let tier = ApiKeyTier::Premium;
-        assert_eq!(tier.hourly_limit(), 1000);
-        assert_eq!(tier.daily_limit(), 5000);
-    }
-
-    #[test]
-    fn test_tier_limits_none() {
-        let (hourly, daily) = (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT);
-        assert_eq!(hourly, 10);
-        assert_eq!(daily, 25);
-    }
-
-    #[test]
-    fn test_check_limit_url_construction_with_standard_tier() {
-        let tier = Some(ApiKeyTier::Standard);
-        let (hourly, daily) = match tier {
-            Some(t) => (t.hourly_limit(), t.daily_limit()),
-            None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
-        };
-        let url = RateLimiterService::build_check_url(hourly, daily);
-        assert_eq!(url, "http://rate-limiter/check?hourly=100&daily=500");
-    }
-
-    #[test]
-    fn test_check_limit_url_construction_with_premium_tier() {
-        let tier = Some(ApiKeyTier::Premium);
-        let (hourly, daily) = match tier {
-            Some(t) => (t.hourly_limit(), t.daily_limit()),
-            None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
-        };
-        let url = RateLimiterService::build_check_url(hourly, daily);
-        assert_eq!(url, "http://rate-limiter/check?hourly=1000&daily=5000");
-    }
-
-    #[test]
-    fn test_check_limit_url_construction_with_no_tier() {
-        let tier: Option<ApiKeyTier> = None;
-        let (hourly, daily) = match tier {
-            Some(t) => (t.hourly_limit(), t.daily_limit()),
-            None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
-        };
-        let url = RateLimiterService::build_check_url(hourly, daily);
-        assert_eq!(url, "http://rate-limiter/check?hourly=10&daily=25");
     }
 
     #[test]

@@ -87,6 +87,18 @@ test('Max-Downloads deletes the file after the last allowed download', async () 
   assert.equal((await request(`/${file.id}`)).status, 404);
 });
 
+test('Max-Downloads keeps the file until the Nth download', async () => {
+  const file = await uploadOk('hello', { headers: { 'Max-Downloads': '2' } });
+
+  assert.equal((await request(`/${file.id}`)).status, 200);
+  const info = await request(`/${file.id}/info`);
+  assert.equal(info.status, 200);
+  assert.equal((await info.json()).download_count, 1);
+
+  assert.equal((await request(`/${file.id}`)).status, 200);
+  assert.equal((await request(`/${file.id}`)).status, 404);
+});
+
 // data.bin is sent as an attachment by /:id, so each route shows that it sets its own disposition.
 for (const [route, disposition] of [['get', 'attachment'], ['inline', 'inline']]) {
   test(`/${route}/:id serves the last allowed download and then returns 404`, async () => {
