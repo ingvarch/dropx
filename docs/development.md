@@ -11,11 +11,13 @@ Local setup, checks and project layout. To put the service on Cloudflare, see [d
   rustup target add wasm32-unknown-unknown
   ```
 
-- Node.js and the `wrangler` CLI:
+- Node.js 22 or newer. `wrangler` is a dev dependency of the project; install it with:
 
   ```bash
-  npm install -g wrangler
+  npm ci
   ```
+
+  The commands below run it with `npx wrangler`.
 
 - `worker-build`. The build command in `wrangler.toml` installs it and builds the Worker, so `wrangler dev` and `wrangler deploy` need no extra step.
 
@@ -34,7 +36,7 @@ cp .dev.vars.example .dev.vars
 Apply the migrations from `migrations/` to the local D1 database:
 
 ```bash
-wrangler d1 migrations apply dropx-db --local
+npx wrangler d1 migrations apply dropx-db --local
 ```
 
 Local R2, D1 and Durable Object data lives in `.wrangler/state`, which is ignored by git.
@@ -42,7 +44,7 @@ Local R2, D1 and Durable Object data lives in `.wrangler/state`, which is ignore
 ## Run
 
 ```bash
-wrangler dev
+npx wrangler dev
 ```
 
 The Worker listens on `http://localhost:8787`.
@@ -65,8 +67,16 @@ curl "http://localhost:8787/cdn-cgi/local/scheduled"
 Run these after every code change. The output must have no warnings and no failures.
 
 ```bash
-cargo clippy && cargo check && cargo test
+cargo clippy -- -D warnings
+cargo clippy --target wasm32-unknown-unknown -- -D warnings
+cargo check
+cargo test
+npm run test:e2e
 ```
+
+`cargo test` covers the pure helpers. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
+
+GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 
 The rules for code, tests and commits are in [CLAUDE.md](../CLAUDE.md).
 
@@ -110,9 +120,14 @@ dropx/
 │   └── templates/
 │       ├── index.html          # Landing page
 │       └── styles.css
+├── tests/e2e/                  # End-to-end tests against wrangler dev
+│   ├── run.mjs                 # Starts the Worker, runs the tests, stops it
+│   └── helpers.mjs             # Request helpers shared by the tests
 ├── migrations/                 # D1 migrations
 ├── docs/                       # Documentation
+├── .github/workflows/ci.yml    # Checks on pull requests and main
 ├── Cargo.toml
+├── package.json                # wrangler and the e2e test script
 ├── wrangler.toml               # Bindings, cron trigger, build command
 ├── .dev.vars.example           # Template for local secrets
 └── CLAUDE.md                   # Development guidelines

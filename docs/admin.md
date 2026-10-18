@@ -14,7 +14,7 @@ If `ADMIN_TOKEN` is not set on the Worker, admin requests fail with a server err
 
 `ADMIN_TOKEN` is the only runtime setting the code reads. Everything else the Worker uses comes from the bindings in `wrangler.toml`.
 
-- Production: `wrangler secret put ADMIN_TOKEN` (see [deployment.md](deployment.md#secrets)).
+- Production: `npx wrangler secret put ADMIN_TOKEN` (see [deployment.md](deployment.md#secrets)).
 - Local: set `ADMIN_TOKEN` in `.dev.vars` (see [development.md](development.md#local-secrets)).
 
 ## Create an API key

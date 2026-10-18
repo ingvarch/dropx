@@ -1,0 +1,99 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { pathOf, request, upload, uploadOk } from './helpers.mjs';
+
+test('upload returns the file id, size, expiry and links', async () => {
+  const file = await uploadOk('hello', { filename: 'hello.txt' });
+
+  assert.match(file.id, /^[1-9A-HJ-NP-Za-km-z]+$/);
+  assert.equal(file.filename, 'hello.txt');
+  assert.equal(file.size, 5);
+  assert.equal(file.expires_in, '3d');
+  assert.equal(pathOf(file.url), `/${file.id}`);
+  assert.match(pathOf(file.delete_url), new RegExp(`^/${file.id}/\\w+$`));
+});
+
+test('download returns the uploaded bytes with metadata headers', async () => {
+  const body = new Uint8Array([0, 1, 2, 250, 255]);
+  const file = await uploadOk(body, { filename: 'data.bin' });
+
+  const response = await request(`/${file.id}`);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), body);
+  assert.equal(response.headers.get('Content-Disposition'), 'attachment; filename="data.bin"');
+  assert.equal(response.headers.get('X-Download-Count'), '0');
+  assert.equal(response.headers.get('X-Expires-At'), String(file.expires_at));
+});
+
+test('info returns metadata and counts downloads', async () => {
+  const file = await uploadOk('hello');
+  await request(`/${file.id}`);
+
+  const response = await request(`/${file.id}/info`);
+
+  assert.equal(response.status, 200);
+  const info = await response.json();
+  assert.equal(info.id, file.id);
+  assert.equal(info.size, 5);
+  assert.equal(info.download_count, 1);
+});
+
+test('unknown file id returns 404', async () => {
+  const response = await request('/doesnotexist');
+
+  assert.equal(response.status, 404);
+  assert.equal((await response.json()).error, 'File not found');
+});
+
+test('delete with the delete token removes the file', async () => {
+  const file = await uploadOk('hello');
+
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE' });
+
+  assert.equal(deleted.status, 200);
+  assert.equal((await deleted.json()).success, true);
+  assert.equal((await request(`/${file.id}`)).status, 404);
+});
+
+test('delete with a wrong token keeps the file', async () => {
+  const file = await uploadOk('hello');
+
+  const deleted = await request(`/${file.id}/wrongtoken`, { method: 'DELETE' });
+
+  assert.equal(deleted.status, 404);
+  assert.equal((await deleted.json()).error, 'Unauthorized');
+  assert.equal((await request(`/${file.id}`)).status, 200);
+});
+
+test('Max-Downloads deletes the file after the last allowed download', async () => {
+  const file = await uploadOk('hello', { headers: { 'Max-Downloads': '1' } });
+
+  const first = await request(`/${file.id}`);
+  assert.equal(first.status, 200);
+  assert.equal(await first.text(), 'hello');
+
+  assert.equal((await request(`/${file.id}`)).status, 404);
+});
+
+test('Max-Age-Days shortens the retention', async () => {
+  const file = await uploadOk('hello', { headers: { 'Max-Age-Days': '1' } });
+
+  assert.equal(file.expires_in, '1d');
+});
+
+test('Max-Age-Days above the tier default is rejected', async () => {
+  const response = await upload('hello', { headers: { 'Max-Age-Days': '4' } });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'Invalid retention period');
+});
+
+test('landing page is HTML for browsers and text for curl', async () => {
+  const html = await request('/', { headers: { Accept: 'text/html' } });
+  assert.equal(html.status, 200);
+  assert.match(html.headers.get('Content-Type'), /^text\/html/);
+
+  const text = await request('/', { headers: { Accept: '*/*' } });
+  assert.match(text.headers.get('Content-Type'), /^text\/plain/);
+});

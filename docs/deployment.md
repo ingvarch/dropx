@@ -5,7 +5,7 @@ Steps to run DropX on your own Cloudflare account. For local work, see [developm
 The prerequisites are the same as for development. Log in first:
 
 ```bash
-wrangler login
+npx wrangler login
 ```
 
 ## Resources
@@ -17,7 +17,7 @@ The names must match `wrangler.toml`.
 The binding `TRANSFER_BUCKET` points at the bucket `assets-dropx-click`:
 
 ```bash
-wrangler r2 bucket create assets-dropx-click
+npx wrangler r2 bucket create assets-dropx-click
 ```
 
 To use another name, change `bucket_name` in `wrangler.toml`.
@@ -27,7 +27,7 @@ To use another name, change `bucket_name` in `wrangler.toml`.
 The binding `DB` points at the database `dropx-db`:
 
 ```bash
-wrangler d1 create dropx-db
+npx wrangler d1 create dropx-db
 ```
 
 Copy the `database_id` from the output into the `[[d1_databases]]` block of `wrangler.toml`.
@@ -37,12 +37,12 @@ Copy the `database_id` from the output into the `[[d1_databases]]` block of `wra
 The `migrations/` folder holds three files, `0001_initial.sql`, `0002_add_delete_token.sql` and `0003_add_max_downloads.sql`. For a new database, apply all of them:
 
 ```bash
-wrangler d1 migrations apply dropx-db --remote
+npx wrangler d1 migrations apply dropx-db --remote
 ```
 
 wrangler records applied files in the `d1_migrations` table and skips them next time.
 
-A database set up earlier with `wrangler d1 execute --file` has no history in `d1_migrations`. On such a database apply only the new migration files, with `wrangler d1 execute dropx-db --remote --file=migrations/<file>.sql`.
+A database set up earlier with `wrangler d1 execute --file` has no history in `d1_migrations`. On such a database apply only the new migration files, with `npx wrangler d1 execute dropx-db --remote --file=migrations/<file>.sql`.
 
 ### Durable Object
 
@@ -55,20 +55,20 @@ The cleanup job runs daily at 02:00 UTC (`crons = ["0 2 * * *"]` in `wrangler.to
 ## Secrets
 
 ```bash
-wrangler secret put ADMIN_TOKEN
+npx wrangler secret put ADMIN_TOKEN
 ```
 
 Enter a long random value when prompted. It is used for the [admin API](admin.md).
 
 ```bash
-wrangler secret list
-wrangler secret delete ADMIN_TOKEN
+npx wrangler secret list
+npx wrangler secret delete ADMIN_TOKEN
 ```
 
 ## Deploy
 
 ```bash
-wrangler deploy
+npx wrangler deploy
 ```
 
 `wrangler.toml` has `workers_dev = true`, so the Worker is served on a `workers.dev` address. A custom domain is not configured in `wrangler.toml`.
@@ -76,7 +76,7 @@ wrangler deploy
 ## Logs
 
 ```bash
-wrangler tail
+npx wrangler tail
 ```
 
 The Worker writes log lines with `console_log!`, mostly from the cleanup job and from failed deletes. The `[observability.logs]` block in `wrangler.toml` has `enabled = false`, so logs are not stored in the Cloudflare dashboard.
