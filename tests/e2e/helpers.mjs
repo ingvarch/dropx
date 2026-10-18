@@ -49,3 +49,28 @@ export async function createApiKey(tier) {
 export function pathOf(url) {
   return new URL(url).pathname;
 }
+
+const EXPLORER_API = '/cdn-cgi/local/explorer/api/r2/buckets';
+
+async function explorerJson(path) {
+  const response = await fetch(new URL(path, BASE_URL));
+  assert.equal(response.status, 200, await response.clone().text());
+  return (await response.json());
+}
+
+// Sizes of all objects in the local R2 bucket, read through the wrangler dev Local Explorer API.
+export async function listR2ObjectSizes() {
+  const { result } = await explorerJson(EXPLORER_API);
+  assert.equal(result.buckets.length, 1, 'expected one R2 bucket');
+  const objectsPath = `${EXPLORER_API}/${result.buckets[0].name}/objects`;
+
+  const sizes = [];
+  let cursor;
+  do {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    const page = await explorerJson(objectsPath + query);
+    sizes.push(...page.result.map((object) => object.size));
+    cursor = String(page.result_info.is_truncated) === 'true' ? page.result_info.cursor : undefined;
+  } while (cursor);
+  return sizes;
+}

@@ -44,3 +44,13 @@ test('anonymous client is limited to 10 uploads per hour and told when to retry'
   assert.ok(Number(retryAfter) >= 1 && Number(retryAfter) <= 3600, `Retry-After: ${retryAfter}`);
   assert.deepEqual(await limited.json(), { error: 'Rate limit exceeded', message: 'Hourly rate limit exceeded' });
 });
+
+test('uploads rejected with 400 do not use the rate limit', async () => {
+  const ip = newClientIp();
+  for (let i = 0; i < ANON_HOURLY_LIMIT; i++) {
+    const response = await upload(`n${i}`, { ip, headers: { 'Max-Age-Days': '999' } });
+    assert.equal(response.status, 400, `rejected upload ${i + 1}`);
+  }
+
+  await uploadTimes(ANON_HOURLY_LIMIT, ip);
+});

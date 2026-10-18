@@ -6,11 +6,44 @@ use crate::utils::constants::{
     ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
     HEADER_API_KEY, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
-    HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE, HTTP_BAD_REQUEST,
+    HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, ERR_INVALID_RETENTION,
     UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
-use crate::utils::response::{error_response, unauthorized};
+use crate::utils::response::{bad_request, error_response, unauthorized};
+
+#[derive(Debug, PartialEq)]
+struct UploadOptions {
+    retention_days: i64,
+    max_downloads: Option<i32>,
+}
+
+impl UploadOptions {
+    /// Values that are not integers are ignored. An out-of-range retention returns the error message.
+    fn parse(
+        max_age_days: Option<&str>,
+        max_downloads: Option<&str>,
+        default_retention_days: i64,
+    ) -> std::result::Result<Self, String> {
+        let retention_days = match max_age_days.and_then(|v| v.parse::<i64>().ok()) {
+            Some(requested) if requested <= 0 => {
+                return Err("Retention period must be at least 1 day".to_string());
+            }
+            Some(requested) if requested > default_retention_days => {
+                return Err(format!(
+                    "Retention period cannot exceed {} days for your tier",
+                    default_retention_days
+                ));
+            }
+            Some(requested) => requested,
+            None => default_retention_days,
+        };
+        let max_downloads = max_downloads
+            .and_then(|v| v.parse::<i32>().ok())
+            .filter(|&v| v > 0);
+        Ok(Self { retention_days, max_downloads })
+    }
+}
 
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
@@ -34,6 +67,18 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
             .get(HEADER_CF_CONNECTING_IP)?
             .unwrap_or_else(|| UNKNOWN_IP_ADDRESS.to_string());
         (hash_identifier(&ip), None)
+    };
+
+    let default_retention_days = tier
+        .map(|t| t.retention_days())
+        .unwrap_or(ANON_RETENTION_DAYS);
+    let UploadOptions { retention_days, max_downloads } = match UploadOptions::parse(
+        req.headers().get(HEADER_MAX_AGE_DAYS)?.as_deref(),
+        req.headers().get(HEADER_MAX_DOWNLOADS)?.as_deref(),
+        default_retention_days,
+    ) {
+        Ok(options) => options,
+        Err(message) => return bad_request(ERR_INVALID_RETENTION, &message),
     };
 
     if let RateLimitCheck::Limited { retry_after, message } =
@@ -76,43 +121,6 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     StorageService::upload_file(&bucket, &file_id, body).await?;
 
     let now = current_timestamp();
-
-    let max_downloads = req.headers()
-        .get(HEADER_MAX_DOWNLOADS)?
-        .and_then(|v| v.parse::<i32>().ok())
-        .filter(|&v| v > 0);
-
-    let default_retention_days = tier
-        .map(|t| t.retention_days())
-        .unwrap_or(ANON_RETENTION_DAYS);
-
-    let max_allowed_retention = default_retention_days;
-
-    let requested_retention = req.headers()
-        .get(HEADER_MAX_AGE_DAYS)?
-        .and_then(|v| v.parse::<i64>().ok());
-
-    let retention_days = if let Some(requested) = requested_retention {
-        if requested <= 0 {
-            return Ok(Response::from_json(&serde_json::json!({
-                "error": ERR_INVALID_RETENTION,
-                "message": "Retention period must be at least 1 day"
-            }))?
-            .with_status(HTTP_BAD_REQUEST));
-        }
-
-        if requested > max_allowed_retention {
-            return Ok(Response::from_json(&serde_json::json!({
-                "error": ERR_INVALID_RETENTION,
-                "message": format!("Retention period cannot exceed {} days for your tier", max_allowed_retention)
-            }))?
-            .with_status(HTTP_BAD_REQUEST));
-        }
-
-        requested
-    } else {
-        default_retention_days
-    };
 
     let expires_at = now + (retention_days * SECONDS_PER_DAY);
 
@@ -357,34 +365,6 @@ mod tests {
     }
 
     #[test]
-    fn test_max_downloads_header_parsing_valid() {
-        let max_downloads_str = "5";
-        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
-        assert_eq!(parsed, Some(5));
-    }
-
-    #[test]
-    fn test_max_downloads_header_parsing_zero() {
-        let max_downloads_str = "0";
-        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
-        assert_eq!(parsed, None);
-    }
-
-    #[test]
-    fn test_max_downloads_header_parsing_negative() {
-        let max_downloads_str = "-1";
-        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
-        assert_eq!(parsed, None);
-    }
-
-    #[test]
-    fn test_max_downloads_header_parsing_invalid() {
-        let max_downloads_str = "invalid";
-        let parsed = max_downloads_str.parse::<i32>().ok().filter(|&v| v > 0);
-        assert_eq!(parsed, None);
-    }
-
-    #[test]
     fn test_max_downloads_one_time_link() {
         let max_downloads = Some(1);
         assert_eq!(max_downloads, Some(1));
@@ -400,34 +380,6 @@ mod tests {
     fn test_max_downloads_large_value() {
         let max_downloads = Some(1000000);
         assert_eq!(max_downloads, Some(1000000));
-    }
-
-    #[test]
-    fn test_max_age_days_parsing_valid() {
-        let max_age_str = "5";
-        let parsed = max_age_str.parse::<i64>().ok();
-        assert_eq!(parsed, Some(5));
-    }
-
-    #[test]
-    fn test_max_age_days_parsing_zero() {
-        let max_age_str = "0";
-        let parsed = max_age_str.parse::<i64>().ok();
-        assert_eq!(parsed, Some(0));
-    }
-
-    #[test]
-    fn test_max_age_days_parsing_negative() {
-        let max_age_str = "-1";
-        let parsed = max_age_str.parse::<i64>().ok();
-        assert_eq!(parsed, Some(-1));
-    }
-
-    #[test]
-    fn test_max_age_days_parsing_invalid() {
-        let max_age_str = "invalid";
-        let parsed = max_age_str.parse::<i64>().ok();
-        assert_eq!(parsed, None);
     }
 
     #[test]
@@ -499,21 +451,51 @@ mod tests {
         assert_eq!(expires_at, 1000000 + 86400);
     }
 
-    #[test]
-    fn test_retention_validation_positive() {
-        let requested: i64 = 5;
-        assert!(requested > 0);
+    fn options(max_age: Option<&str>, max_downloads: Option<&str>, default_days: i64) -> Result<UploadOptions, String> {
+        UploadOptions::parse(max_age, max_downloads, default_days)
     }
 
     #[test]
-    fn test_retention_validation_zero() {
-        let requested: i64 = 0;
-        assert!(requested <= 0);
+    fn options_use_tier_default_when_headers_are_missing() {
+        let parsed = options(None, None, 7).unwrap();
+        assert_eq!(parsed, UploadOptions { retention_days: 7, max_downloads: None });
     }
 
     #[test]
-    fn test_retention_validation_negative() {
-        let requested: i64 = -1;
-        assert!(requested <= 0);
+    fn options_accept_retention_up_to_the_tier_default() {
+        assert_eq!(options(Some("3"), None, 3).unwrap().retention_days, 3);
+        assert_eq!(options(Some("1"), None, 3).unwrap().retention_days, 1);
+    }
+
+    #[test]
+    fn options_ignore_non_integer_retention() {
+        assert_eq!(options(Some("soon"), None, 7).unwrap().retention_days, 7);
+    }
+
+    #[test]
+    fn options_reject_zero_and_negative_retention() {
+        for value in ["0", "-1"] {
+            assert_eq!(options(Some(value), None, 7), Err("Retention period must be at least 1 day".to_string()));
+        }
+    }
+
+    #[test]
+    fn options_reject_retention_above_the_tier_default() {
+        assert_eq!(
+            options(Some("8"), None, 7),
+            Err("Retention period cannot exceed 7 days for your tier".to_string())
+        );
+    }
+
+    #[test]
+    fn options_parse_max_downloads() {
+        assert_eq!(options(None, Some("5"), 7).unwrap().max_downloads, Some(5));
+    }
+
+    #[test]
+    fn options_ignore_max_downloads_that_is_not_a_positive_integer() {
+        for value in ["0", "-1", "many"] {
+            assert_eq!(options(None, Some(value), 7).unwrap().max_downloads, None);
+        }
     }
 }

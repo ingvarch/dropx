@@ -15,15 +15,15 @@ Code layout is in [development.md](development.md#project-structure). The router
 ## Upload flow
 
 1. If `X-API-Key` is present, look the key up in D1. An unknown or revoked key returns `401`. Otherwise the client is identified by a hash of `CF-Connecting-IP`.
-2. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
-3. Read the whole body into memory and check the size against the tier. Too large returns `413`.
-4. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
-5. Detect the MIME type from the first bytes, then from the file name.
-6. Write the body to R2.
-7. Check `Max-Age-Days` and `Max-Downloads`, compute `expires_at`.
-8. Insert the metadata row into D1 and return the JSON response.
+2. Check `Max-Age-Days` against the tier default and parse `Max-Downloads`. An invalid retention returns `400`.
+3. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
+4. Read the whole body into memory and check the size against the tier. Too large returns `413`.
+5. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
+6. Detect the MIME type from the first bytes, then from the file name.
+7. Write the body to R2.
+8. Compute `expires_at`, insert the metadata row into D1 and return the JSON response.
 
-The retention check (step 7) runs after the R2 write. A request rejected there leaves an object in R2 without a database row. The cleanup job does not find such objects.
+A request that fails in steps 2 to 4 stores no file: nothing is written to R2 and no row is added to `files`.
 
 ## Download flow
 
