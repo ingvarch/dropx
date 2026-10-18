@@ -113,7 +113,6 @@ dropx/
 │   │   ├── content_negotiation.rs
 │   │   ├── response.rs         # Error response helpers
 │   │   ├── time.rs
-│   │   ├── validation.rs
 │   │   └── templates.rs        # Landing page rendering
 │   └── templates/
 │       ├── index.html          # Landing page
