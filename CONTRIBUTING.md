@@ -16,11 +16,7 @@ Local setup, the database migrations and `wrangler dev` are described in [docs/d
 
 1. Create a branch from `main` named `<type>/<short-name>`, for example `fix/inline-download-limit`.
 2. Write a failing test that describes the behavior you want, then the code that makes it pass. Changes that alter behavior without a test are not merged.
-3. Run the checks. The output must have no warnings and no failures:
-
-   ```bash
-   cargo clippy && cargo check && cargo test
-   ```
+3. Run the [checks](docs/development.md#checks). The output must have no warnings and no failures. Behavior that goes through HTTP is tested in `tests/e2e/`.
 
 4. Update the files in `docs/` if the change alters what users or operators see.
 5. Commit with a [conventional commit](https://www.conventionalcommits.org/) message: `type(scope): description`, imperative, lower case.

@@ -1,0 +1,15 @@
+{
+  "name": "dropx-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests for the DropX Worker",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.1"
+  }
+}

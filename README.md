@@ -29,12 +29,13 @@ Limits per tier are in [docs/limits.md](docs/limits.md). Public routes and optio
 
 ## Quick Start
 
-You need Rust, Node.js with `wrangler`, and the setup from [docs/development.md](docs/development.md#prerequisites).
+You need Rust with the `wasm32-unknown-unknown` target and Node.js, see [docs/development.md](docs/development.md#prerequisites).
 
 ```bash
+npm ci
 cp .dev.vars.example .dev.vars
-wrangler d1 migrations apply dropx-db --local
-wrangler dev
+npx wrangler d1 migrations apply dropx-db --local
+npx wrangler dev
 curl --upload-file ./file.txt http://localhost:8787/file.txt
 ```
 
