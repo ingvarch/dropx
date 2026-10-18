@@ -45,6 +45,13 @@ impl UploadOptions {
     }
 }
 
+fn filename_from_path(path: &str) -> String {
+    match path.trim_start_matches('/') {
+        "" => DEFAULT_FILENAME.to_string(),
+        name => name.to_string(),
+    }
+}
+
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
 
@@ -108,12 +115,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let file_id = generate_file_id();
     let delete_token = generate_delete_token();
 
-    let path = req.path();
-    let filename = if path == "/" || path.is_empty() {
-        DEFAULT_FILENAME.to_string()
-    } else {
-        path.trim_start_matches('/').to_string()
-    };
+    let filename = filename_from_path(&req.path());
 
     let mime_type = detect_mime_type(&filename, &body);
 
@@ -168,6 +170,18 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn root_path_gets_the_default_filename() {
+        assert_eq!(filename_from_path("/"), DEFAULT_FILENAME);
+        assert_eq!(filename_from_path(""), DEFAULT_FILENAME);
+    }
+
+    #[test]
+    fn filename_is_the_path_without_the_leading_slash() {
+        assert_eq!(filename_from_path("/document.pdf"), "document.pdf");
+        assert_eq!(filename_from_path("/uploads/document.pdf"), "uploads/document.pdf");
+    }
 
     fn options(max_age: Option<&str>, max_downloads: Option<&str>, default_days: i64) -> Result<UploadOptions, String> {
         UploadOptions::parse(max_age, max_downloads, default_days)

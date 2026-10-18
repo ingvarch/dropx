@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ADMIN_TOKEN, adminRequest, createApiKey, request, upload, uploadOk } from './helpers.mjs';
+import { ADMIN_TOKEN, adminRequest, createApiKey, createApiKeyResponse, request, upload, uploadOk } from './helpers.mjs';
 
 test('admin routes need the admin token', async () => {
   const response = await request('/admin/stats');
@@ -31,6 +31,16 @@ test('stats count stored files and active API keys', async () => {
   assert.ok(stats.total_files >= 1);
   assert.ok(stats.api_keys_count >= 1);
 });
+
+for (const [tier, limits] of [['standard', { hourly: 100, daily: 500 }], ['premium', { hourly: 1000, daily: 5000 }]]) {
+  test(`creating a ${tier} API key returns the key and its limits`, async () => {
+    const created = await createApiKeyResponse(tier);
+
+    assert.match(created.key, /^tfr_[0-9a-f]{32}$/);
+    assert.equal(created.tier, tier);
+    assert.deepEqual(created.limits, limits);
+  });
+}
 
 test('an API key raises the limits to its tier', async () => {
   const key = await createApiKey('standard');

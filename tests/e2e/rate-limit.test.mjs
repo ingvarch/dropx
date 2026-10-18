@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adminRequest, ipUserId, newClientIp, upload } from './helpers.mjs';
+import { adminRequest, createApiKey, ipUserId, newClientIp, upload } from './helpers.mjs';
 
 const ANON_HOURLY_LIMIT = 10;
 
@@ -53,4 +53,14 @@ test('uploads rejected with 400 do not use the rate limit', async () => {
   }
 
   await uploadTimes(ANON_HOURLY_LIMIT, ip);
+});
+
+test('an API key raises the hourly limit to its tier', async () => {
+  const key = await createApiKey('standard');
+  const ip = newClientIp();
+
+  for (let i = 0; i <= ANON_HOURLY_LIMIT; i++) {
+    const response = await upload(`n${i}`, { ip, headers: { 'X-API-Key': key } });
+    assert.equal(response.status, 200, `upload ${i + 1}: ${await response.text()}`);
+  }
 });

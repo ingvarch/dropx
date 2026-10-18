@@ -35,14 +35,18 @@ export function adminRequest(path, { headers = {}, ...init } = {}) {
   return request(path, { ...init, headers: { 'X-Admin-Token': ADMIN_TOKEN, ...headers } });
 }
 
-export async function createApiKey(tier) {
+export async function createApiKeyResponse(tier) {
   const response = await adminRequest('/admin/api-keys', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'e2e@example.com', tier }),
   });
   assert.equal(response.status, 201, await response.clone().text());
-  return (await response.json()).key;
+  return response.json();
+}
+
+export async function createApiKey(tier) {
+  return (await createApiKeyResponse(tier)).key;
 }
 
 // Upload responses use the public https host; tests send the path to the local Worker.
