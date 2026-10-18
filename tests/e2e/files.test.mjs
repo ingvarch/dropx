@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  d1Raw,
   fileRowExists,
   listR2ObjectSizes,
   pathOf,
@@ -129,6 +130,22 @@ test('a rejected upload leaves no object in R2', async () => {
 
   assert.equal(response.status, 400);
   assert.ok(!(await listR2ObjectSizes()).includes(uniqueSize), 'object left in R2');
+});
+
+test('a failed D1 insert removes the object that was just written', async () => {
+  const uniqueSize = 7907;
+  await d1Raw(
+    "CREATE TRIGGER fail_insert BEFORE INSERT ON files WHEN NEW.original_filename = 'fail-insert.bin' BEGIN SELECT RAISE(ABORT, 'forced insert failure'); END",
+    [],
+  );
+  try {
+    const response = await upload('x'.repeat(uniqueSize), { filename: 'fail-insert.bin' });
+
+    assert.equal(response.status, 500);
+    assert.ok(!(await listR2ObjectSizes()).includes(uniqueSize), 'object left in R2');
+  } finally {
+    await d1Raw('DROP TRIGGER fail_insert', []);
+  }
 });
 
 const READ_ROUTES = [

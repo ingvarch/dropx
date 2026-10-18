@@ -21,7 +21,7 @@ Code layout is in [development.md](development.md#project-structure). The router
 5. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
 6. Detect the MIME type from the first bytes, then from the file name.
 7. Write the body to R2.
-8. Compute `expires_at`, insert the metadata row into D1 and return the JSON response.
+8. Compute `expires_at`, insert the metadata row into D1 and return the JSON response. If the insert fails, delete the object it just wrote to R2 and return the insert error (`500`). A failed delete is logged and does not replace that error.
 
 A request that fails in steps 2 to 4 stores no file: nothing is written to R2 and no row is added to `files`.
 
