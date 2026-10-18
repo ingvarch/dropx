@@ -67,14 +67,14 @@ curl "http://localhost:8787/cdn-cgi/local/scheduled"
 Run these after every code change. The output must have no warnings and no failures.
 
 ```bash
-cargo clippy -- -D warnings
-cargo clippy --target wasm32-unknown-unknown -- -D warnings
+cargo clippy --all-targets -- -D warnings
+cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
 cargo check
 cargo test
 npm run test:e2e
 ```
 
-`cargo test` covers the pure helpers. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
+`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `npm run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with the Node.js test runner and stops the Worker. It does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
 
 GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 

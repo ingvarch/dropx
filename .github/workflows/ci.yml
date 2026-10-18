@@ -27,8 +27,8 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy -- -D warnings
-      - run: cargo clippy --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
       - run: cargo check
       - run: cargo test
 
