@@ -14,6 +14,11 @@ fn rows_matched(meta: Option<worker::D1ResultMeta>) -> Result<bool> {
 pub struct DatabaseService;
 
 #[derive(Deserialize)]
+struct DeleteTokenRow {
+    delete_token: String,
+}
+
+#[derive(Deserialize)]
 struct FileRow {
     id: String,
     original_filename: String,
@@ -101,7 +106,11 @@ impl DatabaseService {
 
     pub async fn get_file(env: &worker::Env, file_id: &str) -> Result<Option<FileMetadata>> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("SELECT * FROM files WHERE id = ?1 AND expires_at > ?2");
+        // Expired files and files whose download limit is used up are not served.
+        let statement = d1.prepare(
+            "SELECT * FROM files WHERE id = ?1 AND expires_at > ?2 \
+             AND (max_downloads IS NULL OR download_count < max_downloads)",
+        );
         let query = statement.bind(&[file_id.into(), (current_timestamp() as f64).into()])?;
 
         match query.first::<FileRow>(None).await? {
@@ -110,11 +119,12 @@ impl DatabaseService {
         }
     }
 
-    pub async fn file_exists(env: &worker::Env, file_id: &str) -> Result<bool> {
+    /// Returns the delete token hash of a file, expired or not.
+    pub async fn get_delete_token_hash(env: &worker::Env, file_id: &str) -> Result<Option<String>> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("SELECT id FROM files WHERE id = ?1");
+        let statement = d1.prepare("SELECT delete_token FROM files WHERE id = ?1");
         let query = statement.bind(&[file_id.into()])?;
-        Ok(query.first::<FileIdResult>(None).await?.is_some())
+        Ok(query.first::<DeleteTokenRow>(None).await?.map(|row| row.delete_token))
     }
 
     pub async fn increment_download_count(env: &worker::Env, file_id: &str) -> Result<()> {
@@ -122,13 +132,6 @@ impl DatabaseService {
         let statement = d1.prepare("UPDATE files SET download_count = download_count + 1 WHERE id = ?1");
         statement.bind(&[file_id.into()])?.run().await?;
         Ok(())
-    }
-
-    pub async fn delete_file_with_token(env: &worker::Env, file_id: &str, delete_token_hash: &str) -> Result<bool> {
-        let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("DELETE FROM files WHERE id = ?1 AND delete_token = ?2");
-        let result = statement.bind(&[file_id.into(), delete_token_hash.into()])?.run().await?;
-        rows_matched(result.meta()?)
     }
 
     pub async fn get_expired_file_ids(env: &worker::Env) -> Result<Vec<String>> {
@@ -144,18 +147,9 @@ impl DatabaseService {
             .collect())
     }
 
-    pub async fn delete_files(env: &worker::Env, file_ids: &[String]) -> Result<()> {
-        if file_ids.is_empty() {
-            return Ok(());
-        }
-
+    pub async fn delete_file(env: &worker::Env, file_id: &str) -> Result<()> {
         let d1 = Self::get_db(env)?;
-        let statements = file_ids
-            .iter()
-            .map(|id| d1.prepare("DELETE FROM files WHERE id = ?1").bind(&[id.into()]))
-            .collect::<Result<Vec<_>>>()?;
-        d1.batch(statements).await?;
-
+        d1.prepare("DELETE FROM files WHERE id = ?1").bind(&[file_id.into()])?.run().await?;
         Ok(())
     }
 

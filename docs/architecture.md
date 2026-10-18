@@ -29,11 +29,22 @@ A request that fails in steps 2 to 4 stores no file: nothing is written to R2 an
 
 `GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path and differ only in `Content-Disposition`:
 
-1. Read the metadata row from D1. No row, or a row with `expires_at` in the past, returns `404`.
+1. Read the metadata row from D1. No row, a row with `expires_at` in the past, or a row whose `download_count` has reached `max_downloads`, returns `404`.
 2. Read the object from R2. No object returns `404`.
 3. Add one to `download_count` in D1.
-4. If `max_downloads` is set and the new count has reached it, delete the object from R2 and the row from D1.
+4. If `max_downloads` is set and the new count has reached it, delete the object from R2, then the row from D1. If the object delete fails, the row stays, step 1 no longer serves it, and the cleanup job removes it after it expires. The download still succeeds.
 5. Return the bytes with the headers listed in [api.md](api.md#download).
+
+## Delete flow
+
+`DELETE /:id/:token`:
+
+1. Read the stored token hash by ID. No row returns `404` `NotFound`.
+2. Compare it with the hash of the presented token in constant time. A mismatch returns `404` `Unauthorized`.
+3. Delete the object from R2, then the row from D1. If the object delete fails, the row stays and the request returns `500`. The file can be deleted again, and the cleanup job removes it after it expires.
+4. Return `200`.
+
+Every removal (delete, `Max-Downloads`, cleanup) goes through `remove_file` in `src/services/file_removal.rs`.
 
 ## Storage path
 
@@ -88,8 +99,8 @@ One Durable Object per client, named by the client identity (the SHA-256 of the 
 The cron trigger runs `cleanup::run_cleanup` daily at 02:00 UTC:
 
 1. Select the IDs of rows with `expires_at` at or before now: the same rows the download routes no longer serve.
-2. Delete each object from R2. A failure is logged.
-3. Delete from D1 only the rows whose object was deleted. A row whose R2 delete failed stays, and the next run retries it.
+2. For each file, delete the object from R2, then the row from D1. A failure is logged.
+3. A row whose R2 delete failed stays, and the next run retries it.
 
 Expired files are already unavailable before this job runs: the download and info routes skip rows with `expires_at` in the past, and only delete still finds them. The job frees their storage.
 

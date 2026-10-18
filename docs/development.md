@@ -99,6 +99,7 @@ dropx/
 │   ├── services/
 │   │   ├── database.rs         # D1 queries
 │   │   ├── storage.rs          # R2 operations
+│   │   ├── file_removal.rs     # Removes a file: R2 object, then D1 row
 │   │   └── rate_limiter.rs     # Client for the Durable Object
 │   ├── durable_objects/
 │   │   └── rate_limiter.rs     # RateLimiter Durable Object
