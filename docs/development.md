@@ -126,7 +126,7 @@ dropx/
 ├── docs/                       # Documentation
 ├── .github/workflows/ci.yml    # Checks on pull requests and main
 ├── Cargo.toml
-├── package.json                # wrangler and the e2e test script
+├── package.json                # wrangler, the e2e test and deploy scripts
 ├── bun.lock                    # Locked dev dependency versions
 ├── wrangler.toml               # Bindings, cron trigger, build command
 ├── .dev.vars.example           # Template for local secrets
