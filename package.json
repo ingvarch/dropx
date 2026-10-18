@@ -7,7 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "test:e2e": "bun tests/e2e/run.mjs"
+    "test:e2e": "bun tests/e2e/run.mjs",
+    "deploy": "wrangler build && wrangler d1 migrations apply dropx-db --remote < /dev/null && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "4.151.1"

@@ -31,7 +31,7 @@ bun run test:e2e
 
 ## Production
 
-Never run `wrangler` with `--remote`, `wrangler deploy` or `wrangler secret` unless the maintainer asks.
+Never run `bun run deploy`, `wrangler` with `--remote`, `wrangler deploy` or `wrangler secret` unless the maintainer asks.
 
 ## Tests
 

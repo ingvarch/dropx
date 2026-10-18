@@ -42,11 +42,11 @@ bunx wrangler d1 migrations apply dropx-db --remote
 
 wrangler records applied files in the `d1_migrations` table and skips them next time.
 
-A database set up earlier with `wrangler d1 execute --file` has no history in `d1_migrations`. On such a database apply only the new migration files, with `bunx wrangler d1 execute dropx-db --remote --file=migrations/<file>.sql`.
+A database set up earlier with `wrangler d1 execute --file` has no history in `d1_migrations`. On such a database apply only the new migration files, with `bunx wrangler d1 execute dropx-db --remote --file=migrations/<file>.sql`, then deploy with `bunx wrangler deploy`. `bun run deploy` would try to apply every migration again and stop at `0002`.
 
-Migration `0004` replaces the stored delete tokens and API keys with random values and deactivates all API keys, because SQLite cannot hash them. After it runs, existing delete links stop working, existing API keys return `401` and must be created again, and `uploaded_by` of existing files no longer matches any client. Files stay downloadable until they expire. The migration only writes data in the old format, so the previous Worker version still runs on the migrated database.
+Migration `0004` replaces the stored delete tokens and API keys with random values and deactivates all API keys, because SQLite cannot hash them. After it runs, existing delete links stop working, existing API keys return `401` and must be created again, and `uploaded_by` of existing files no longer matches any client. Files stay downloadable until they expire. The migration does not change the schema, so the previous Worker version still runs on the migrated database.
 
-Apply `0004` right before you deploy the version that hashes secrets. It keeps delete tokens and API keys that are already 64-character SHA-256 hex, so values written by the new version survive either order. Files the previous version uploads after the migration (between the two steps, or after a `wrangler rollback`) keep a plain delete token until they expire, and their delete links do not work with the new version.
+Apply `0004` right before you deploy the version that hashes secrets; `bun run deploy` does both, in that order. The migration keeps values that are already 64-character SHA-256 hex: delete tokens, API keys and the `uploaded_by` of keyed uploads written by the new version survive either order. Anonymous `uploaded_by` values look the same in both versions, so all of them are replaced. Between the two steps, or after a `wrangler rollback`, the previous version stores plain delete tokens and API keys: those delete links fail and those keys return `401` on the new version, and the plain values stay in D1 until the files expire. To clear them, run the `0004` SQL again with `bunx wrangler d1 execute dropx-db --remote --file=migrations/0004_hash_stored_secrets.sql`: it replaces every value that is not 64 characters long.
 
 ### Durable Object
 
@@ -78,7 +78,13 @@ bunx wrangler secret delete ADMIN_TOKEN
 ## Deploy
 
 ```bash
-bunx wrangler deploy
+bun run deploy
+```
+
+It builds the Worker, applies the migrations the remote database does not have yet, and runs `wrangler deploy`. The migrations are applied without a confirmation prompt, and a failed build or migration stops the deploy. Building first keeps the time between the migration and the new version short. To see the pending migrations first:
+
+```bash
+bunx wrangler d1 migrations list dropx-db --remote
 ```
 
 `wrangler.toml` has `workers_dev = true`, so the Worker is served on a `workers.dev` address. A custom domain is not configured in `wrangler.toml`.
