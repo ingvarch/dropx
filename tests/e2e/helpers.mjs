@@ -4,7 +4,7 @@ import { createHash, createHmac, randomInt } from 'node:crypto';
 export const BASE_URL = process.env.DROPX_URL;
 export const ADMIN_TOKEN = process.env.DROPX_ADMIN_TOKEN;
 const IP_HASH_KEY = process.env.DROPX_IP_HASH_KEY;
-assert.ok(BASE_URL && ADMIN_TOKEN && IP_HASH_KEY, 'start the e2e tests with `npm run test:e2e`');
+assert.ok(BASE_URL && ADMIN_TOKEN && IP_HASH_KEY, 'start the e2e tests with `bun run test:e2e`');
 
 const IP_HASH_HEX_LENGTH = 32;
 

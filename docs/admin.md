@@ -14,7 +14,7 @@ If `ADMIN_TOKEN` is not set on the Worker, admin requests fail with a server err
 
 The code reads two secrets: `ADMIN_TOKEN` for the admin API and `IP_HASH_KEY` for IP hashes. Without `IP_HASH_KEY`, anonymous uploads fail with `500`. Everything else the Worker uses comes from the bindings in `wrangler.toml`.
 
-- Production: `npx wrangler secret put ADMIN_TOKEN` and `npx wrangler secret put IP_HASH_KEY` (see [deployment.md](deployment.md#secrets)).
+- Production: `bunx wrangler secret put ADMIN_TOKEN` and `bunx wrangler secret put IP_HASH_KEY` (see [deployment.md](deployment.md#secrets)).
 - Local: set `ADMIN_TOKEN` and `IP_HASH_KEY` in `.dev.vars` (see [development.md](development.md#local-secrets)).
 
 ## Create an API key
@@ -41,7 +41,7 @@ Response, status `201`:
 }
 ```
 
-The response is the only time the key is shown. The database stores its SHA-256, so a lost key cannot be recovered. Revoking through the API needs the plain key. For a lost key, deactivate it in D1 with `npx wrangler d1 execute dropx-db --remote --command "UPDATE api_keys SET is_active = 0 WHERE user_email = '...'"`, then create a new one. The client sends the key in the `X-API-Key` header on uploads.
+The response is the only time the key is shown. The database stores its SHA-256, so a lost key cannot be recovered. Revoking through the API needs the plain key. For a lost key, deactivate it in D1 with `bunx wrangler d1 execute dropx-db --remote --command "UPDATE api_keys SET is_active = 0 WHERE user_email = '...'"`, then create a new one. The client sends the key in the `X-API-Key` header on uploads.
 
 ## Revoke an API key
 

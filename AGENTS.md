@@ -23,11 +23,11 @@ cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
 cargo check
 cargo test
-npm run test:e2e
+bun run test:e2e
 ```
 
-- `npm ci` installs wrangler. Run it with `npx wrangler`, not a global install.
-- `npm run test:e2e` starts its own `wrangler dev` on fresh local state. It does not touch `.wrangler/state` or `.dev.vars`.
+- `bun install` installs wrangler. Run it with `bunx wrangler`, not a global install. wrangler itself runs on Node.js 22 or newer.
+- `bun run test:e2e` starts its own `wrangler dev` on fresh local state. It does not touch `.wrangler/state` or `.dev.vars`.
 
 ## Production
 
@@ -39,12 +39,12 @@ Write the failing test first, and confirm it fails for the right reason.
 
 - Rust unit tests are for pure functions. They must call project code: no assertions on constants, no copies of the logic.
 - `console_log!` and `worker::Headers` need the JS runtime and fail in `cargo test`. Extract a pure function and test that. Examples: `decide_limit` in `src/durable_objects/rate_limiter.rs`, `parse_check_response` in `src/services/rate_limiter.rs`, `delete_objects` in `src/cleanup.rs` (run with `Waker::noop`).
-- HTTP behavior goes in `tests/e2e/*.test.mjs` (Node test runner), using `tests/e2e/helpers.mjs`:
+- HTTP behavior goes in `tests/e2e/*.test.mjs` (`bun test`, written with `node:test` and `node:assert`), using `tests/e2e/helpers.mjs`:
   - Every request gets a random `CF-Connecting-IP` (`newClientIp`), so tests do not share rate limit counters.
   - `setExpiresAt`, `d1Raw` and `listR2ObjectSizes` read and write D1 and R2 through the Local Explorer.
   - `runScheduledCleanup` triggers the cron job.
-  - To make a D1 insert fail, create a SQLite trigger that raises an abort, then drop it (see `files.test.mjs`). Limit it with `WHEN` to one file name, so uploads in test files running in parallel are not affected.
-- Tests inside one file run in order. Files run in parallel. A test that changes shared state (the scheduled cleanup, D1 triggers) belongs in `files.test.mjs`.
+  - To make a D1 insert fail, create a SQLite trigger that raises an abort, then drop it (see `files.test.mjs`). Limit it with `WHEN` to one file name and drop it in `finally`, so other uploads are not affected.
+- `bun test` runs the files one after another in one process. All tests share one Worker and one database: undo what a test changes (triggers) and do not rely on rows from other tests.
 
 ## worker-rs
 
