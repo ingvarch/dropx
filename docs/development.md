@@ -90,9 +90,7 @@ dropx/
 │   ├── handlers/
 │   │   ├── landing.rs          # GET /
 │   │   ├── upload.rs           # POST /, PUT /:filename
-│   │   ├── download.rs         # GET /:id
-│   │   ├── get.rs              # GET /get/:id
-│   │   ├── inline.rs           # GET /inline/:id
+│   │   ├── download.rs         # GET /:id, /get/:id, /inline/:id
 │   │   ├── info.rs             # GET /:id/info
 │   │   ├── delete.rs           # DELETE /:id/:token
 │   │   └── admin.rs            # /admin/* routes

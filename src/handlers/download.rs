@@ -8,7 +8,19 @@ use crate::utils::constants::{
 };
 
 pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let file_id = get_file_id_param(&ctx)?;
+    serve_file(&ctx, DispositionType::Auto).await
+}
+
+pub async fn handle_get(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    serve_file(&ctx, DispositionType::Attachment).await
+}
+
+pub async fn handle_inline(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    serve_file(&ctx, DispositionType::Inline).await
+}
+
+async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Result<Response> {
+    let file_id = get_file_id_param(ctx)?;
 
     let file_metadata = match DatabaseService::get_file(&ctx.env, file_id).await? {
         Some(metadata) => metadata,
@@ -47,7 +59,7 @@ pub async fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Res
         HEADER_CONTENT_DISPOSITION,
         &get_content_disposition(
             &file_metadata.original_filename,
-            DispositionType::Auto,
+            disposition,
             &file_metadata.mime_type,
         ),
     )?;
