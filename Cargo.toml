@@ -11,24 +11,20 @@ license = "UNLICENSED"
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.6", features = ["d1"] }
+worker = { version = "0.8", features = ["d1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 base58 = "0.2"
 chrono = "0.4"
 uuid = { version = "1.0", features = ["v4", "serde", "js"] }
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
-
-[dev-dependencies]
-tokio = { version = "1.0", features = ["macros", "test-util", "time"] }
-mockall = "0.12"
-proptest = "1.0"
-quickcheck = "1.0"
-assert_matches = "1.5"
 
 [profile.release]
 opt-level = "z"
 lto = true
 codegen-units = 1
-strip = true
+# Workaround: strip = true drops the target_features section and wasm-bindgen >= 0.2.125
+# fails with "externref table required". Revert once wasm-bindgen#5205 ships.
+# https://github.com/cloudflare/workers-rs/issues/1014
+strip = "debuginfo"

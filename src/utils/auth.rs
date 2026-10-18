@@ -53,6 +53,12 @@ mod tests {
     }
 
     #[test]
+    fn test_hash_identifier_known_vector() {
+        // NIST SHA-256("abc"), first 16 bytes
+        assert_eq!(hash_identifier("abc"), "ba7816bf8f01cfea414140de5dae2223");
+    }
+
+    #[test]
     fn test_hash_identifier_uniqueness() {
         let hash1 = hash_identifier("192.168.1.1");
         let hash2 = hash_identifier("192.168.1.2");

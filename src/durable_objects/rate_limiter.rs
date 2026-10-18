@@ -63,7 +63,7 @@ impl RateLimiter {
             .state
             .storage()
             .get("counts")
-            .await
+            .await?
             .unwrap_or_default();
 
         let now = Date::now().as_millis();

@@ -1,6 +1,6 @@
 name = "dropx"
-main = "build/worker/shim.mjs"
-compatibility_date = "2025-10-04"
+main = "build/index.js"
+compatibility_date = "2026-10-18"
 workers_dev = true
 
 [observability]
@@ -11,7 +11,7 @@ invocation_logs = true
 persist = true
 
 [build]
-command = "cargo install -q worker-build && worker-build --release"
+command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
 
 # R2 Bucket
 [[r2_buckets]]
