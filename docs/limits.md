@@ -19,7 +19,7 @@ Only uploads count. Downloads, info and delete requests are not limited.
 - Who is counted: an API key is counted by the key. An anonymous client is counted by a hash of its IP address (`CF-Connecting-IP`). Requests without that header share one anonymous counter.
 - Windows: each client has an hourly and a daily counter. A counter starts when the first upload arrives after the previous window ended, and resets one hour (or one day) later. The windows are not aligned to the clock.
 - Both counters are checked. A rejected request does not add to the counters.
-- The check runs before the file is validated. An upload that later fails with `400` or `413` still uses one upload from each counter.
+- The headers are validated before the check, and the body is read after it. An upload rejected with `400` does not use the counters. An upload that later fails with `413` still uses one upload from each counter.
 
 When a limit is hit, the upload returns `429` with a `Retry-After` header and a JSON body. `Retry-After` is the number of whole seconds until the upload can succeed again (at least 1). `message` names the full window, `Hourly rate limit exceeded` or `Daily rate limit exceeded`. If both windows are full, `Retry-After` counts to the later of the two resets and `message` names that window:
 

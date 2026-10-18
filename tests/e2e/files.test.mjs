@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { pathOf, request, upload, uploadOk } from './helpers.mjs';
+import { listR2ObjectSizes, pathOf, request, upload, uploadOk } from './helpers.mjs';
 
 test('upload returns the file id, size, expiry and links', async () => {
   const file = await uploadOk('hello', { filename: 'hello.txt' });
@@ -110,4 +110,13 @@ test('landing page is HTML for browsers and text for curl', async () => {
 
   const text = await request('/', { headers: { Accept: '*/*' } });
   assert.match(text.headers.get('Content-Type'), /^text\/plain/);
+});
+
+test('a rejected upload leaves no object in R2', async () => {
+  const uniqueSize = 7919;
+
+  const response = await upload('x'.repeat(uniqueSize), { headers: { 'Max-Age-Days': '999' } });
+
+  assert.equal(response.status, 400);
+  assert.ok(!(await listR2ObjectSizes()).includes(uniqueSize), 'object left in R2');
 });
