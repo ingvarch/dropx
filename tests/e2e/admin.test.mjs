@@ -37,3 +37,19 @@ test('a revoked API key is rejected', async () => {
 
   assert.equal((await upload('hello', { headers: { 'X-API-Key': key } })).status, 401);
 });
+
+test('revoking an unknown API key returns 404', async () => {
+  const response = await adminRequest('/admin/api-keys/tfr_does_not_exist', { method: 'DELETE' });
+
+  assert.equal(response.status, 404);
+  assert.equal((await response.json()).error, 'NotFound');
+});
+
+test('revoking the same API key twice returns 200 both times', async () => {
+  const key = await createApiKey('standard');
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await adminRequest(`/admin/api-keys/${key}`, { method: 'DELETE' });
+    assert.equal(response.status, 200);
+  }
+});

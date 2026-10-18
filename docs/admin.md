@@ -52,7 +52,7 @@ curl -X DELETE https://dropx.click/admin/api-keys/tfr_xxxxx \
   -H "X-Admin-Token: $ADMIN_TOKEN"
 ```
 
-Response, status `200`: `{"message": "API key revoked", "key": "tfr_xxxxx"}`. The key is marked inactive, and uploads with it return `401`. The call also returns `200` for a key that does not exist.
+Response, status `200`: `{"message": "API key revoked", "key": "tfr_xxxxx"}`. The key is marked inactive, and uploads with it return `401`. Revoking a key that is already revoked also returns `200`. A key that does not exist returns `404` with `error` set to `NotFound`.
 
 ## Statistics
 
