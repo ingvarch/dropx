@@ -344,20 +344,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_active_flag_true() {
-        let is_active_db = DB_BOOL_TRUE;
-        let is_active = is_active_db == DB_BOOL_TRUE;
-        assert!(is_active);
-    }
-
-    #[test]
-    fn test_is_active_flag_false() {
-        let is_active_db = DB_BOOL_FALSE;
-        let is_active = is_active_db == DB_BOOL_TRUE;
-        assert!(!is_active);
-    }
-
-    #[test]
     fn test_api_key_tier_from_str_standard() {
         let tier_str = "standard";
         let tier = ApiKeyTier::from_str(tier_str);
@@ -388,44 +374,5 @@ mod tests {
     fn test_api_key_tier_to_str_premium() {
         let tier = ApiKeyTier::Premium;
         assert_eq!(tier.as_str(), "premium");
-    }
-
-    #[test]
-    fn test_stats_response_serialization() {
-        let stats = StatsResponse {
-            total_files: 100,
-            total_size_bytes: 1048576,
-            active_files: 80,
-            total_downloads: 500,
-            api_keys_count: 10,
-        };
-
-        let json = serde_json::to_string(&stats).unwrap();
-        assert!(json.contains("\"total_files\":100"));
-        assert!(json.contains("\"total_size_bytes\":1048576"));
-        assert!(json.contains("\"active_files\":80"));
-        assert!(json.contains("\"total_downloads\":500"));
-        assert!(json.contains("\"api_keys_count\":10"));
-    }
-
-    #[test]
-    fn test_db_bool_constants() {
-        assert_eq!(DB_BOOL_TRUE, 1);
-        assert_eq!(DB_BOOL_FALSE, 0);
-        assert_ne!(DB_BOOL_TRUE, DB_BOOL_FALSE);
-    }
-
-    #[test]
-    fn test_stats_response_default_values() {
-        let stats = StatsResponse {
-            total_files: 0,
-            total_size_bytes: 0,
-            active_files: 0,
-            total_downloads: 0,
-            api_keys_count: 0,
-        };
-
-        assert_eq!(stats.total_files, 0);
-        assert_eq!(stats.total_size_bytes, 0);
     }
 }

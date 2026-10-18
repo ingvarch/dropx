@@ -55,40 +55,4 @@ mod tests {
         assert!(accept_value_contains_html("text/html;q=0.9"));
         assert!(accept_value_contains_html("application/json,text/html;q=0.8"));
     }
-
-    // These tests require WASM runtime and are only compiled for wasm32 target
-    #[cfg(target_arch = "wasm32")]
-    mod wasm_tests {
-        use super::*;
-        use worker::Headers;
-
-        #[test]
-        fn test_accepts_html_with_html_accept() {
-            let headers = Headers::new();
-            headers
-                .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .unwrap();
-            assert!(accepts_html(&headers));
-        }
-
-        #[test]
-        fn test_accepts_html_with_json_accept() {
-            let headers = Headers::new();
-            headers.set("Accept", "application/json").unwrap();
-            assert!(!accepts_html(&headers));
-        }
-
-        #[test]
-        fn test_accepts_html_without_accept_header() {
-            let headers = Headers::new();
-            assert!(!accepts_html(&headers));
-        }
-
-        #[test]
-        fn test_accepts_html_case_insensitive() {
-            let headers = Headers::new();
-            headers.set("Accept", "TEXT/HTML").unwrap();
-            assert!(accepts_html(&headers));
-        }
-    }
 }

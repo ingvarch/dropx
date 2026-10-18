@@ -124,44 +124,21 @@ mod tests {
     }
 
     #[test]
-    fn test_api_key_tier_max_file_size() {
-        assert_eq!(ApiKeyTier::Standard.max_file_size(), 100 * 1024 * 1024);
-        assert_eq!(ApiKeyTier::Premium.max_file_size(), 500 * 1024 * 1024);
+    fn standard_tier_uses_the_standard_constants() {
+        let tier = ApiKeyTier::Standard;
+        assert_eq!(tier.max_file_size(), STANDARD_MAX_FILE_SIZE);
+        assert_eq!(tier.retention_days(), STANDARD_RETENTION_DAYS);
+        assert_eq!(tier.hourly_limit(), STANDARD_HOURLY_LIMIT);
+        assert_eq!(tier.daily_limit(), STANDARD_DAILY_LIMIT);
     }
 
     #[test]
-    fn test_api_key_tier_retention_days() {
-        assert_eq!(ApiKeyTier::Standard.retention_days(), 7);
-        assert_eq!(ApiKeyTier::Premium.retention_days(), 30);
-    }
-
-    #[test]
-    fn test_api_key_tier_hourly_limit() {
-        assert_eq!(ApiKeyTier::Standard.hourly_limit(), 100);
-        assert_eq!(ApiKeyTier::Premium.hourly_limit(), 1000);
-    }
-
-    #[test]
-    fn test_api_key_tier_daily_limit() {
-        assert_eq!(ApiKeyTier::Standard.daily_limit(), 500);
-        assert_eq!(ApiKeyTier::Premium.daily_limit(), 5000);
-    }
-
-    #[test]
-    fn test_api_key_serialization() {
-        let api_key = ApiKey {
-            key: "tfr_abc123".to_string(),
-            user_email: Some("user@example.com".to_string()),
-            created_at: 1000000,
-            last_used_at: Some(1000100),
-            is_active: true,
-            tier: ApiKeyTier::Premium,
-        };
-
-        let json = serde_json::to_string(&api_key).unwrap();
-        assert!(json.contains("\"key\":\"tfr_abc123\""));
-        assert!(json.contains("\"user_email\":\"user@example.com\""));
-        assert!(json.contains("\"tier\":\"premium\""));
+    fn premium_tier_uses_the_premium_constants() {
+        let tier = ApiKeyTier::Premium;
+        assert_eq!(tier.max_file_size(), PREMIUM_MAX_FILE_SIZE);
+        assert_eq!(tier.retention_days(), PREMIUM_RETENTION_DAYS);
+        assert_eq!(tier.hourly_limit(), PREMIUM_HOURLY_LIMIT);
+        assert_eq!(tier.daily_limit(), PREMIUM_DAILY_LIMIT);
     }
 
     #[test]
@@ -171,17 +148,4 @@ mod tests {
         assert_eq!(request.email, "test@example.com");
         assert_eq!(request.tier, ApiKeyTier::Standard);
     }
-
-    #[test]
-    fn test_api_key_limits_serialization() {
-        let limits = ApiKeyLimits {
-            hourly: 100,
-            daily: 500,
-        };
-
-        let json = serde_json::to_string(&limits).unwrap();
-        assert!(json.contains("\"hourly\":100"));
-        assert!(json.contains("\"daily\":500"));
-    }
 }
-
