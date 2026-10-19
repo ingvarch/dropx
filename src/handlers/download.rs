@@ -1,5 +1,6 @@
 use worker::{Request, Response, RouteContext, Result, Headers, console_log};
 use crate::services::{StorageService, DatabaseService};
+use crate::utils::is_file_id;
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
 use crate::utils::content_disposition::{content_headers, DispositionType};
 use crate::utils::constants::{
@@ -22,6 +23,9 @@ pub async fn handle_inline(_req: Request, ctx: RouteContext<()>) -> Result<Respo
 
 async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Result<Response> {
     let file_id = get_file_id_param(ctx)?;
+    if !is_file_id(file_id) {
+        return file_not_found();
+    }
 
     let file_metadata = match DatabaseService::get_file(&ctx.env, file_id).await? {
         Some(metadata) => metadata,

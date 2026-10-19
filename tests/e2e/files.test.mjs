@@ -65,6 +65,15 @@ test('unknown file id returns 404', async () => {
   assert.equal((await response.json()).error, 'File not found');
 });
 
+test('paths that are not file ids, such as /favicon.ico, return the same 404', async () => {
+  for (const path of ['/favicon.ico', '/robots.txt', '/get/favicon.ico', '/inline/robots.txt', '/favicon.ico/info']) {
+    const response = await request(path);
+
+    assert.equal(response.status, 404, path);
+    assert.equal((await response.json()).error, 'File not found', path);
+  }
+});
+
 test('delete with the delete token removes the file', async () => {
   const file = await uploadOk('hello');
 

@@ -29,7 +29,7 @@ A request rejected in steps 2 to 4, or in step 6 by the size check, stores no fi
 
 `GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path. They differ in `Content-Disposition`, and `/inline/:id` changes `Content-Type` for HTML, SVG and XML ([api.md](api.md#download)). The decision is in `content_headers` in `src/utils/content_disposition.rs`. The shared code path:
 
-1. Read the metadata row from D1. No row, a row with `expires_at` in the past, or a row whose `download_count` has reached `max_downloads`, returns `404`.
+1. Read the metadata row from D1. No row, a row with `expires_at` in the past, or a row whose `download_count` has reached `max_downloads`, returns `404`. A path that cannot be a file ID (`is_file_id` in `src/utils/id_generator.rs`), such as `/favicon.ico`, returns the same `404` without reading D1. `/:id/info` does the same check.
 2. Open the object in R2. No object returns `404`.
 3. Add one to `download_count` in D1.
 4. Stream the object body from R2 into the response with the headers listed in [api.md](api.md#download). The Worker does not read the file into memory, so the size of a file is not limited by the Worker memory.
