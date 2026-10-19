@@ -4,8 +4,8 @@ import { execFile } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { after, before, test } from 'node:test';
 import { promisify } from 'node:util';
+import { afterAll, beforeAll, test } from 'bun:test';
 
 const run = promisify(execFile);
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -35,7 +35,7 @@ async function select(sql) {
   return results;
 }
 
-before(async () => {
+beforeAll(async () => {
   stateDir = mkdtempSync(join(tmpdir(), 'dropx-migration-'));
   const legacy = LEGACY_FILES.map((name) => readFileSync(join(ROOT, 'migrations', name), 'utf8')).join('\n');
   const legacyFile = join(stateDir, 'legacy.sql');
@@ -59,7 +59,7 @@ before(async () => {
   await execute('--file', join(ROOT, 'migrations', MIGRATION));
 }, { timeout: MIGRATION_TIMEOUT_MS });
 
-after(() => rmSync(stateDir, { recursive: true, force: true, maxRetries: 3 }));
+afterAll(() => rmSync(stateDir, { recursive: true, force: true, maxRetries: 3 }));
 
 test('0004 replaces the plain delete token and the uploader id', async () => {
   const [file] = await select("SELECT delete_token, uploaded_by FROM files WHERE id = 'legacyfile'");
