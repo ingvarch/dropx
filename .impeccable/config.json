@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "src/templates/index.html"
+        ],
+        "createdAt": "2026-10-19T18:19:06.162Z",
+        "reason": "False positive: the hook scans the template without styles.css, which render_landing_page inlines at runtime; the rendered page has h1 2.5-4.5rem, h2 1.875-3rem, body 1rem (issue #59)"
+      }
+    ]
+  }
+}
