@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Workaround: actionlint 1.7.12 does not know this GitHub-hosted label yet. Delete this file per issue #38.
+  labels:
+    - ubuntu-26.04
