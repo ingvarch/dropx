@@ -1,5 +1,13 @@
 # DropX - File Transfer Service
 
+[![CI](https://github.com/ingvarch/dropx/actions/workflows/ci.yml/badge.svg)](https://github.com/ingvarch/dropx/actions/workflows/ci.yml)
+[![Security](https://github.com/ingvarch/dropx/actions/workflows/security.yml/badge.svg)](https://github.com/ingvarch/dropx/actions/workflows/security.yml)
+[![Release](https://img.shields.io/github/v/release/ingvarch/dropx)](https://github.com/ingvarch/dropx/releases)
+[![License](https://img.shields.io/github/license/ingvarch/dropx)](LICENSE)
+[![dropx.click](https://img.shields.io/website?url=https%3A%2F%2Fdropx.click&label=dropx.click)](https://dropx.click)
+[![Rust](https://img.shields.io/badge/Rust-dea584?logo=rust&logoColor=black)](Cargo.toml)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-f38020?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
+
 A file transfer service built with Rust on Cloudflare Workers, inspired by transfer.sh. Upload a file with one curl command and share the link.
 
 ## Features
