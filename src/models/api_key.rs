@@ -7,12 +7,8 @@ use crate::utils::constants::{
     PREMIUM_HOURLY_LIMIT, PREMIUM_DAILY_LIMIT,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ApiKey {
-    pub key_hash: String,
-    pub user_email: Option<String>,
-    pub created_at: i64,
-    pub last_used_at: Option<i64>,
     pub is_active: bool,
     pub tier: ApiKeyTier,
 }
@@ -33,7 +29,7 @@ impl ApiKeyTier {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateApiKeyRequest {
     pub email: String,
     pub tier: ApiKeyTier,
