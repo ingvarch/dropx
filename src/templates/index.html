@@ -436,14 +436,10 @@
                     const codeElement = codeBlock ? codeBlock.querySelector('code') : null;
                     if (!codeElement) return;
 
-                    // Get text from code element and convert <br> to newlines
-                    const text = codeElement.innerHTML
-                        .replace(/<br\s*\/?>/gi, '\n')
-                        .replace(/<[^>]+>/g, '')
-                        .replace(/&lt;/g, '<')
-                        .replace(/&gt;/g, '>')
-                        .replace(/&amp;/g, '&')
-                        .replace(/&quot;/g, '"');
+                    // textContent drops <br>, so turn each one into a newline first
+                    const copy = codeElement.cloneNode(true);
+                    copy.querySelectorAll('br').forEach(function(br) { br.replaceWith('\n'); });
+                    const text = copy.textContent;
 
                     if (!text) return;
 
