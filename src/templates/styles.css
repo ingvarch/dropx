@@ -80,11 +80,8 @@ body {
     line-height: 1.1;
 }
 
-.gradient-text {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+.accent-text {
+    color: var(--primary);
 }
 
 .hero p {
@@ -100,7 +97,7 @@ body {
     padding: 2rem;
     margin: 3rem auto;
     max-width: 800px;
-    box-shadow: 0 10px 60px hsl(168 76% 42% / 0.15);
+    box-shadow: 0 12px 40px hsl(220 40% 2% / 0.5);
 }
 
 .code-example-header {
@@ -157,21 +154,22 @@ body {
 
 .cta-button {
     display: inline-block;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    color: white;
+    background: var(--primary);
+    color: var(--background);
     font-size: 1.125rem;
     font-weight: 600;
     padding: 1rem 2.5rem;
     border-radius: var(--radius);
     text-decoration: none;
     margin-top: 2rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 20px hsl(168 76% 42% / 0.3);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 12px hsl(220 40% 2% / 0.4);
 }
 
 .cta-button:hover {
+    background: var(--primary-glow);
     transform: translateY(-2px);
-    box-shadow: 0 6px 30px hsl(168 76% 42% / 0.5);
+    box-shadow: 0 8px 20px hsl(220 40% 2% / 0.5);
 }
 
 .cta-button:active {
@@ -216,7 +214,7 @@ section h2 {
 
 .feature-card:hover {
     border-color: hsl(168 76% 42% / 0.5);
-    box-shadow: 0 0 40px hsl(168 76% 42% / 0.1);
+    box-shadow: 0 8px 24px hsl(220 40% 2% / 0.4);
 }
 
 .feature-icon {
@@ -378,7 +376,7 @@ section h2 {
 /* Limits Box */
 .limits-box {
     background: linear-gradient(135deg, hsl(220 14% 18% / 0.5), hsl(220 14% 15% / 0.5));
-    border-left: 4px solid var(--primary);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 2rem;
     margin: 2rem 0;
