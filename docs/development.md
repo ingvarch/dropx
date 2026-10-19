@@ -115,6 +115,7 @@ dropx/
 │   │   ├── id_generator.rs     # File IDs and delete tokens
 │   │   ├── storage_path.rs     # R2 object paths
 │   │   ├── origin.rs           # Public origin from the Host header
+│   │   ├── upload_body.rs      # How an upload body is read: stream or buffer, size limits
 │   │   ├── mime.rs             # MIME type detection
 │   │   ├── content_disposition.rs
 │   │   ├── content_negotiation.rs

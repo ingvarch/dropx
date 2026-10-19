@@ -9,6 +9,7 @@ pub mod content_disposition;
 pub mod templates;
 pub mod storage_path;
 pub mod origin;
+pub mod upload_body;
 
 pub use id_generator::{generate_file_id, generate_delete_token};
 pub use mime::detect_mime_type;

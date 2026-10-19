@@ -4,6 +4,8 @@ pub const BYTES_PER_MB: usize = 1024 * BYTES_PER_KB;
 pub const ANON_MAX_FILE_SIZE: usize = 25 * BYTES_PER_MB;
 pub const STANDARD_MAX_FILE_SIZE: usize = 100 * BYTES_PER_MB;
 pub const PREMIUM_MAX_FILE_SIZE: usize = 500 * BYTES_PER_MB;
+pub const MAX_BUFFERED_UPLOAD_SIZE: usize = 25 * BYTES_PER_MB;
+pub const MIME_SNIFF_BYTES: u64 = 16;
 
 pub const ANON_RETENTION_DAYS: i64 = 3;
 pub const STANDARD_RETENTION_DAYS: i64 = 7;
@@ -36,6 +38,7 @@ pub const HTTP_CREATED: u16 = 201;
 pub const HTTP_BAD_REQUEST: u16 = 400;
 pub const HTTP_UNAUTHORIZED: u16 = 401;
 pub const HTTP_NOT_FOUND: u16 = 404;
+pub const HTTP_LENGTH_REQUIRED: u16 = 411;
 pub const HTTP_PAYLOAD_TOO_LARGE: u16 = 413;
 pub const HTTP_TOO_MANY_REQUESTS: u16 = 429;
 
@@ -63,6 +66,7 @@ pub const ERR_RATE_LIMIT_EXCEEDED: &str = "Rate limit exceeded";
 pub const ERR_FILE_NOT_FOUND: &str = "File not found";
 pub const ERR_INVALID_API_KEY: &str = "Invalid API key";
 pub const ERR_FILE_TOO_LARGE: &str = "File too large";
+pub const ERR_LENGTH_REQUIRED: &str = "Length required";
 pub const ERR_FILE_ID_REQUIRED: &str = "File ID is required";
 pub const ERR_INVALID_RETENTION: &str = "Invalid retention period";
 pub const ERR_UNAUTHORIZED: &str = "Unauthorized";
