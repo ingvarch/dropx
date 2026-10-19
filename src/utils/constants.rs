@@ -64,6 +64,8 @@ pub const ERR_INVALID_API_KEY: &str = "Invalid API key";
 pub const ERR_FILE_TOO_LARGE: &str = "File too large";
 pub const ERR_FILE_ID_REQUIRED: &str = "File ID is required";
 pub const ERR_INVALID_RETENTION: &str = "Invalid retention period";
+pub const ERR_UNAUTHORIZED: &str = "Unauthorized";
+pub const ERR_NOT_FOUND: &str = "NotFound";
 
 pub const UNKNOWN_IP_ADDRESS: &str = "unknown";
 pub const DEFAULT_FILENAME: &str = "file";
