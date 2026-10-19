@@ -226,7 +226,12 @@ section h2 {
     align-items: center;
     justify-content: center;
     margin-bottom: 1rem;
-    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.feature-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 .feature-card h3 {
