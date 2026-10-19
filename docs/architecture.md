@@ -43,7 +43,7 @@ The download never deletes a file. When the new count reaches `max_downloads`, s
 1. Read the stored token hash by ID. No row returns `404` `NotFound`.
 2. Compare it with the hash of the presented token in constant time. A mismatch returns `404` `Unauthorized`.
 3. Delete the object from R2, then the row from D1. If the object delete fails, the row stays and the request returns `500`. The file can be deleted again, and the cleanup job removes it after it expires.
-4. Return `200`.
+4. Return `200`. The answer is plain text, or JSON when `Accept` contains `application/json`. The `404` answers follow the same rule; the `500` does not.
 
 Every removal (delete and the cleanup job) goes through `remove_file` in `src/services/file_removal.rs`.
 
