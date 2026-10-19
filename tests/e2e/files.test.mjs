@@ -140,6 +140,12 @@ test('landing page is HTML for browsers and text for curl', async () => {
   assert.match(text.headers.get('Content-Type'), /^text\/plain/);
 });
 
+test('HEAD / returns 200', async () => {
+  const response = await request('/', { method: 'HEAD' });
+
+  assert.equal(response.status, 200);
+});
+
 test('a rejected upload leaves no object in R2', async () => {
   const uniqueSize = 7919;
 

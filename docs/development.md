@@ -93,7 +93,7 @@ dropx/
 │   ├── lib.rs                  # Router, fetch and scheduled entry points
 │   ├── cleanup.rs              # Cron job: remove expired files
 │   ├── handlers/
-│   │   ├── landing.rs          # GET /
+│   │   ├── landing.rs          # GET, HEAD /
 │   │   ├── upload.rs           # POST /, PUT /:filename
 │   │   ├── download.rs         # GET /:id, /get/:id, /inline/:id
 │   │   ├── info.rs             # GET /:id/info

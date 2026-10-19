@@ -2,7 +2,7 @@ use worker::*;
 use crate::utils::{accepts_html, origin_for_host, render_landing_page};
 use crate::utils::constants::HEADER_HOST;
 
-/// Handles GET / requests with content negotiation.
+/// Handles GET and HEAD / requests with content negotiation.
 ///
 /// Returns:
 /// - HTML landing page if Accept header contains text/html (browsers)
