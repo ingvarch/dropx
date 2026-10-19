@@ -1,6 +1,6 @@
 [package]
 name = "dropx"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Igor Churmeev <ingvarch@gmail.com>"]
 description = "Fast and secure temporary file sharing service built on Cloudflare Workers with R2 storage, D1 database, and rate limiting"
