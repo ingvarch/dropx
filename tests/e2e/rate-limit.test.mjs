@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'bun:test';
-import { adminRequest, createApiKey, ipUserId, newClientIp, upload } from './helpers.mjs';
+import { adminRequest, createApiKey, ipUserId, newClientIp, newIpv6Network, upload } from './helpers.mjs';
 
 const ANON_HOURLY_LIMIT = 10;
 
@@ -63,4 +63,22 @@ test('an API key raises the hourly limit to its tier', async () => {
     const response = await upload(`n${i}`, { ip, headers: { 'X-API-Key': key } });
     assert.equal(response.status, 200, `upload ${i + 1}: ${await response.text()}`);
   }
+});
+
+test('IPv6 clients are limited per /64 network', async () => {
+  const network = newIpv6Network();
+  await uploadTimes(ANON_HOURLY_LIMIT, network.address(1));
+
+  assert.equal((await upload('over', { ip: network.address(2) })).status, 429);
+  assert.equal((await upload('other', { ip: newIpv6Network().address(1) })).status, 200);
+});
+
+test('admin reset of an IPv6 client uses the HMAC of its /64 prefix', async () => {
+  const network = newIpv6Network();
+  await reachLimit(network.address(1));
+
+  const reset = await adminRequest(`/admin/rate-limit/reset/${ipUserId(network.prefix)}`, { method: 'POST' });
+
+  assert.equal(reset.status, 200);
+  assert.equal((await upload('again', { ip: network.address(1) })).status, 200);
 });

@@ -13,6 +13,14 @@ export function newClientIp() {
   return `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
 }
 
+// A random IPv6 /64 network: `address(n)` gives distinct addresses inside it, `prefix` is the network as the Worker names it.
+export function newIpv6Network() {
+  // Non-zero groups, so the prefix has no zero run that the Worker would shorten to `::`.
+  const hextet = () => randomInt(1, 0x10000).toString(16);
+  const prefix = `2001:db8:${hextet()}:${hextet()}`;
+  return { prefix: `${prefix}::/64`, address: (n) => `${prefix}::${n.toString(16)}` };
+}
+
 export function sha256Hex(value) {
   return createHash('sha256').update(value).digest('hex');
 }

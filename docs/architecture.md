@@ -14,7 +14,7 @@ Code layout is in [development.md](development.md#project-structure). The router
 
 ## Upload flow
 
-1. If `X-API-Key` is present, hash it with SHA-256 and look the hash up in D1. An unknown or revoked key returns `401`. Otherwise the client is identified by an HMAC of `CF-Connecting-IP`.
+1. If `X-API-Key` is present, hash it with SHA-256 and look the hash up in D1. An unknown or revoked key returns `401`. Otherwise the client is identified by an HMAC of the IPv4 address in `CF-Connecting-IP`, or of its IPv6 /64 prefix.
 2. Check `Max-Age-Days` against the tier default and parse `Max-Downloads`. An invalid retention returns `400`.
 3. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
 4. Read the whole body into memory and check the size against the tier. Too large returns `413`.
@@ -115,7 +115,7 @@ Expired files are already unavailable before this job runs: the download and inf
 What the code does:
 
 - API keys and delete tokens are random UUID v4 values (122 random bits). D1 stores only their SHA-256 (`api_keys.key`, `files.delete_token`). The create and upload responses show the plain value once, and it cannot be recovered. A delete or an upload with a key hashes the presented value and compares it in SQL.
-- IP addresses are hashed with HMAC-SHA-256 keyed with the `IP_HASH_KEY` secret (first 16 bytes, hex, 32 characters) before they are used as the rate limit key or stored in `uploaded_by`. Without the key the hash cannot be reversed by trying all IPv4 addresses. A missing `IP_HASH_KEY` makes anonymous uploads fail with `500`. Changing the key gives every client a new identity, so rate limit counters start over.
+- IPv4 addresses and IPv6 /64 prefixes (`2001:db8:1:2::/64`) are hashed with HMAC-SHA-256 keyed with the `IP_HASH_KEY` secret (first 16 bytes, hex, 32 characters) before they are used as the rate limit key or stored in `uploaded_by`. Without the key the hash cannot be reversed by trying all IPv4 addresses. A missing `IP_HASH_KEY` makes anonymous uploads fail with `500`. Changing the key gives every client a new identity, so rate limit counters start over.
 - Admin routes need `X-Admin-Token` equal to the `ADMIN_TOKEN` secret. Both values are hashed with SHA-256 and the digests are compared in constant time, so response time does not reveal how much of a guess is right or how long the secret is.
 - Deleting needs the delete token that only the uploader receives.
 - Anyone who knows a file ID can download it. There is no per-file access control.
