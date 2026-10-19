@@ -56,7 +56,7 @@ curl --upload-file ./file.txt http://localhost:8787/file.txt
 curl http://localhost:8787/<id> -o file.txt
 ```
 
-The `url` and `delete_url` in the upload response start with `http://localhost:8787`, so you can use them as they are.
+The upload response prints the download URL, which starts with `http://localhost:8787`, so you can use it as it is. `delete_url` is in the `X-Url-Delete` header, and in the JSON when you send `-H "Accept: application/json"`.
 
 To run the cleanup job locally, with `wrangler dev` running:
 

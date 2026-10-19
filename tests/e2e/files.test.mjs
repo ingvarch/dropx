@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { test } from 'bun:test';
 import {
   BASE_URL,
+  chunkedBody,
   createApiKey,
   d1Raw,
   fileRowExists,
@@ -314,7 +315,7 @@ test('expires_at is the retention period after the upload', async () => {
 });
 
 test('upload without a file name is stored as "file"', async () => {
-  const response = await request('/', { method: 'POST', body: 'hello' });
+  const response = await request('/', { method: 'POST', body: 'hello', headers: { Accept: 'application/json' } });
 
   assert.equal(response.status, 200);
   assert.equal((await response.json()).filename, 'file');
@@ -436,20 +437,6 @@ test('a large download returns the uploaded bytes and the Content-Length', async
   assert.equal(received.length, size);
   assert.equal(sha256Hex(received), sha256Hex(body));
 });
-
-const CHUNK_SIZE = 1024 * 1024;
-
-// A body without Content-Length: bun sends a ReadableStream as chunked.
-function chunkedBody(buffer) {
-  let offset = 0;
-  return new ReadableStream({
-    pull(controller) {
-      if (offset >= buffer.length) return controller.close();
-      controller.enqueue(buffer.subarray(offset, offset + CHUNK_SIZE));
-      offset += CHUNK_SIZE;
-    },
-  });
-}
 
 function uploadChunked(buffer, options = {}) {
   return upload(chunkedBody(buffer), { duplex: 'half', ...options });

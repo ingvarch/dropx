@@ -31,6 +31,7 @@ curl --upload-file ./big.zip -H "X-API-Key: tfr_xxxxx" https://dropx.click/big.z
 
 | Header | Required | Meaning |
 |--------|----------|---------|
+| `Accept` | no | `application/json` (anywhere in the value, any case) gives the JSON answer. Any other value, or none, gives plain text. See [Response](#response). |
 | `X-API-Key` | no | API key. Raises the limits to the key's tier. An unknown or revoked key gives `401`. |
 | `Max-Downloads` | no | Stop serving the file after this many downloads. The cleanup job deletes it within an hour. Must be a positive integer; any other value is ignored. |
 | `Max-Age-Days` | no | Keep the file this many days instead of the tier default. Rules in [limits.md](limits.md#retention). |
@@ -39,7 +40,15 @@ The `Content-Type` of the request is ignored. The type is detected from the firs
 
 ### Response
 
-Status `200`, `Content-Type: application/json`:
+The answer follows the `Accept` request header. The success answer and the errors in the table below have `Vary: Accept`. Exceptions are `500` errors and Cloudflare's own `413` page.
+
+By default (no `Accept`, `*/*`, `text/plain` or any value without `application/json`), status `200`, `Content-Type: text/plain; charset=utf-8`. The body is the download URL and a newline:
+
+```
+https://dropx.click/<id>
+```
+
+With `Accept: application/json`, status `200`, `Content-Type: application/json`:
 
 ```json
 {
@@ -54,17 +63,19 @@ Status `200`, `Content-Type: application/json`:
 }
 ```
 
-The delete URL is also sent in the `X-Url-Delete` response header. The upload response is the only place the delete token is shown; `/:id/info` does not return it. The URLs use the `Host` of the request: `https` for public hosts, `http` and the port for `localhost` and `127.0.0.1`.
+The delete URL is sent in the `X-Url-Delete` response header in both formats, and in `delete_url` in the JSON. The upload response is the only place the delete token is shown; `/:id/info` does not return it. The URLs use the `Host` of the request: `https` for public hosts, `http` and the port for `localhost` and `127.0.0.1`.
 
 ### Errors
 
-| Status | Cause | Body |
+By default the body is `Error: <message>` and a newline, with `Content-Type: text/plain; charset=utf-8`, for example `Error: Maximum file size is 25 MB`. With `Accept: application/json` the body is JSON as described below, and `message` is the same text.
+
+| Status | Cause | JSON body (with `Accept: application/json`) |
 |--------|-------|------|
-| 400 | `Max-Age-Days` is 0 or negative, or above the tier maximum | JSON, `error` is `Invalid retention period` |
-| 401 | `X-API-Key` is unknown or revoked | JSON, `error` is `Invalid API key` |
-| 411 | No `Content-Length` and the body is over 25 MB, for a tier that allows more | JSON, `error` is `Length required`. Send `Content-Length`, see [limits.md](limits.md#file-size) |
-| 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes. Checked from `Content-Length` before the rate limit when the header is present. A body over 100 MB is rejected by Cloudflare before the Worker, with an HTML page; see [limits.md](limits.md#file-size) |
-| 429 | Hourly or daily upload limit reached | JSON, `error` is `Rate limit exceeded`, `message` names the window (`Hourly rate limit exceeded` or `Daily rate limit exceeded`). The `Retry-After` header holds the seconds until the window resets |
+| 400 | `Max-Age-Days` is 0 or negative, or above the tier maximum | `error` is `Invalid retention period` |
+| 401 | `X-API-Key` is unknown or revoked | `error` is `Invalid API key` |
+| 411 | No `Content-Length` and the body is over 25 MB, for a tier that allows more | `error` is `Length required`. Send `Content-Length`, see [limits.md](limits.md#file-size) |
+| 413 | File is larger than the tier allows | `error` is `File too large`, with `max_size` in bytes. Checked from `Content-Length` before the rate limit when the header is present. A body over 100 MB is rejected by Cloudflare before the Worker, with an HTML page; see [limits.md](limits.md#file-size) |
+| 429 | Hourly or daily upload limit reached | `error` is `Rate limit exceeded`, `message` names the window (`Hourly rate limit exceeded` or `Daily rate limit exceeded`). The `Retry-After` header holds the seconds until the window resets |
 
 ## Download
 
@@ -137,7 +148,7 @@ Delete also works on a file past `expires_at` that the cleanup job has not remov
 
 ## Error format
 
-Errors from the handlers are JSON:
+Upload errors follow the `Accept` header: plain text `Error: <message>` by default, the JSON below with `Accept: application/json`. Errors from the other handlers are always JSON:
 
 ```json
 { "error": "File not found", "message": "The requested file does not exist or has expired" }

@@ -239,16 +239,16 @@
 
                         <div class="example-item">
                             <div class="example-title">Manual file deletion</div>
-                            <div class="example-desc">Extract delete URL from JSON response and delete file</div>
+                            <div class="example-desc">Ask for JSON, extract the delete URL and delete the file</div>
                             <div class="code-block">
                                 <div class="code-block-header">
                                     <span class="code-block-label">COMMAND</span>
-                                    <button class="copy-btn" data-copy-text="DELETE_URL=$(curl -T myfile.txt {{HOSTNAME}} | jq -r '.delete_url')&#10;curl -X DELETE &quot;$DELETE_URL&quot;" aria-label="Copy">
+                                    <button class="copy-btn" data-copy-text="DELETE_URL=$(curl -H &quot;Accept: application/json&quot; -T myfile.txt {{HOSTNAME}} | jq -r '.delete_url')&#10;curl -X DELETE &quot;$DELETE_URL&quot;" aria-label="Copy">
                                         <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                         <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                     </button>
                                 </div>
-                                <code><span class="comment"># Extract delete URL from JSON response</span><br>DELETE_URL=$(curl -T myfile.txt {{HOSTNAME}} | jq -r '.delete_url')<br><br><span class="comment"># Delete file using the URL</span><br>curl -X DELETE "$DELETE_URL"<br><br><span class="comment"># Or delete directly: {{HOSTNAME}}/&lt;file_id&gt;/&lt;delete_token&gt;</span><br>curl -X DELETE {{HOSTNAME}}/abc123/token123</code>
+                                <code><span class="comment"># Ask for JSON and extract the delete URL</span><br>DELETE_URL=$(curl -H "Accept: application/json" -T myfile.txt {{HOSTNAME}} | jq -r '.delete_url')<br><br><span class="comment"># Delete file using the URL</span><br>curl -X DELETE "$DELETE_URL"<br><br><span class="comment"># Or delete directly: {{HOSTNAME}}/&lt;file_id&gt;/&lt;delete_token&gt;</span><br>curl -X DELETE {{HOSTNAME}}/abc123/token123</code>
                             </div>
                         </div>
 
@@ -329,17 +329,18 @@
                             <div class="code-block">
                                 <div class="code-block-header">
                                     <span class="code-block-label">COMMAND</span>
-                                    <button class="copy-btn" data-copy-text="dropx() { curl -T &quot;$1&quot; {{HOSTNAME}}/&quot;${2:-$(basename &quot;$1&quot;)}&quot;; }" aria-label="Copy">
+                                    <button class="copy-btn" data-copy-text="dropx() {&#10;  local accept=()&#10;  case &quot;$1&quot; in -j|--json) accept=(-H &quot;Accept: application/json&quot;); shift ;; esac&#10;  curl &quot;${accept[@]}&quot; -T &quot;$1&quot; {{HOSTNAME}}/&quot;${2:-$(basename &quot;$1&quot;)}&quot;&#10;}" aria-label="Copy">
                                         <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                         <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                     </button>
                                 </div>
-                                <code>dropx() { curl -T "$1" {{HOSTNAME}}/"${2:-$(basename "$1")}"; }</code>
+                                <code>dropx() {<br>  local accept=()<br>  case "$1" in -j|--json) accept=(-H "Accept: application/json"); shift ;; esac<br>  curl "${accept[@]}" -T "$1" {{HOSTNAME}}/"${2:-$(basename "$1")}"<br>}</code>
                             </div>
                             <div class="example-desc" style="margin-top: 1rem;">
                                 <strong>Usage:</strong><br>
-                                <code style="color: var(--primary);">dropx myfile.txt</code> - uploads as myfile.txt<br>
-                                <code style="color: var(--primary);">dropx myfile.txt custom-name.txt</code> - uploads as custom-name.txt
+                                <code style="color: var(--primary);">dropx myfile.txt</code> - uploads as myfile.txt and prints the download link<br>
+                                <code style="color: var(--primary);">dropx myfile.txt custom-name.txt</code> - uploads as custom-name.txt<br>
+                                <code style="color: var(--primary);">dropx -j myfile.txt</code> - prints the full JSON
                             </div>
                         </div>
 
@@ -349,17 +350,18 @@
                             <div class="code-block">
                                 <div class="code-block-header">
                                     <span class="code-block-label">COMMAND</span>
-                                    <button class="copy-btn" data-copy-text="function dropx\n  set filename (test -n &quot;$argv[2]&quot;; and echo $argv[2]; or basename $argv[1])\n  curl -T $argv[1] {{HOSTNAME}}/$filename\nend" aria-label="Copy">
+                                    <button class="copy-btn" data-copy-text="function dropx&#10;    argparse j/json -- $argv; or return&#10;    set accept&#10;    set -q _flag_json; and set accept -H &quot;Accept: application/json&quot;&#10;    set filename (test -n &quot;$argv[2]&quot;; and echo $argv[2]; or basename $argv[1])&#10;    curl $accept -T $argv[1] {{HOSTNAME}}/$filename&#10;end" aria-label="Copy">
                                         <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                         <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                     </button>
                                 </div>
-                                <code>function dropx<br>  set filename (test -n "$argv[2]"; and echo $argv[2]; or basename $argv[1])<br>  curl -T $argv[1] {{HOSTNAME}}/$filename<br>end</code>
+                                <code>function dropx<br>    argparse j/json -- $argv; or return<br>    set accept<br>    set -q _flag_json; and set accept -H "Accept: application/json"<br>    set filename (test -n "$argv[2]"; and echo $argv[2]; or basename $argv[1])<br>    curl $accept -T $argv[1] {{HOSTNAME}}/$filename<br>end</code>
                             </div>
                             <div class="example-desc" style="margin-top: 1rem;">
                                 <strong>Usage:</strong><br>
-                                <code style="color: var(--primary);">dropx myfile.txt</code> - uploads as myfile.txt<br>
-                                <code style="color: var(--primary);">dropx myfile.txt custom-name.txt</code> - uploads as custom-name.txt
+                                <code style="color: var(--primary);">dropx myfile.txt</code> - uploads as myfile.txt and prints the download link<br>
+                                <code style="color: var(--primary);">dropx myfile.txt custom-name.txt</code> - uploads as custom-name.txt<br>
+                                <code style="color: var(--primary);">dropx -j myfile.txt</code> - prints the full JSON
                             </div>
                         </div>
                     </div>
@@ -373,11 +375,22 @@
     <section>
         <div class="container">
             <h2>Response Format</h2>
-            <p class="section-subtitle">Successful uploads return JSON with download information</p>
+            <p class="section-subtitle">An upload prints the download link as plain text. Send <code style="color: var(--primary);">-H "Accept: application/json"</code> to get JSON with the details.</p>
 
             <div class="code-block">
                 <div class="code-block-header">
-                    <span class="code-block-label">JSON RESPONSE</span>
+                    <span class="code-block-label">TEXT RESPONSE (default)</span>
+                    <button class="copy-btn" data-copy-text="{{HOSTNAME}}/abc123" aria-label="Copy">
+                        <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </button>
+                </div>
+                <code>{{HOSTNAME}}/abc123</code>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">
+                    <span class="code-block-label">JSON RESPONSE (Accept: application/json)</span>
                     <button class="copy-btn" data-copy-text="{\n  \"id\": \"abc123\",\n  \"url\": \"{{HOSTNAME}}/abc123\",\n  \"delete_url\": \"{{HOSTNAME}}/abc123/token123\",\n  \"filename\": \"myfile.txt\",\n  \"size\": 1024,\n  \"mime_type\": \"text/plain\",\n  \"expires_in\": \"7d\",\n  \"expires_at\": 1704067200\n}" aria-label="Copy">
                         <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                         <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -387,7 +400,7 @@
             </div>
 
             <p style="margin-top: 1rem; text-align: center; color: var(--muted-foreground);">
-                The response also includes an <code style="color: var(--primary);">X-Url-Delete</code> header with the deletion URL.
+                The delete link is in the <code style="color: var(--primary);">X-Url-Delete</code> response header, in both formats.
             </p>
         </div>
     </section>

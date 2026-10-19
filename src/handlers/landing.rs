@@ -1,6 +1,6 @@
 use worker::*;
 use crate::utils::{accepts_html, origin_for_host, render_landing_page};
-use crate::utils::constants::HEADER_HOST;
+use crate::utils::constants::{HEADER_HOST, HEADER_ACCEPT, HEADER_VARY};
 
 /// Handles GET and HEAD / requests with content negotiation.
 ///
@@ -26,7 +26,7 @@ pub async fn handle_landing(req: Request, _ctx: RouteContext<()>) -> Result<Resp
     // Set Vary header for proper caching with content negotiation
     response
         .headers_mut()
-        .set("Vary", "Accept")?;
+        .set(HEADER_VARY, HEADER_ACCEPT)?;
 
     Ok(response)
 }

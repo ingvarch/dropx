@@ -34,8 +34,23 @@ export function request(path, { ip = newClientIp(), headers = {}, ...init } = {}
   return fetch(new URL(path, BASE_URL), { ...init, headers: { 'CF-Connecting-IP': ip, ...headers } });
 }
 
-export function upload(body, { filename = 'file.txt', ...options } = {}) {
-  return request(`/${filename}`, { method: 'PUT', body, ...options });
+// Asks for JSON by default; the Worker answers uploads in plain text otherwise.
+export function upload(body, { filename = 'file.txt', headers, ...options } = {}) {
+  return request(`/${filename}`, { method: 'PUT', body, headers: { Accept: 'application/json', ...headers }, ...options });
+}
+
+const CHUNK_SIZE = 1024 * 1024;
+
+// A body without Content-Length: bun sends a ReadableStream as chunked.
+export function chunkedBody(buffer) {
+  let offset = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (offset >= buffer.length) return controller.close();
+      controller.enqueue(buffer.subarray(offset, offset + CHUNK_SIZE));
+      offset += CHUNK_SIZE;
+    },
+  });
 }
 
 export async function uploadOk(body, options) {

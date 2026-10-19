@@ -1,9 +1,17 @@
+use serde::Serialize;
 use worker::{Response, Result, RouteContext};
 use crate::models::ErrorResponse;
+use crate::utils::content_negotiation::ResponseFormat;
 use crate::utils::constants::{
+    HEADER_ACCEPT, HEADER_VARY,
     HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED, HTTP_NOT_FOUND,
     ERR_FILE_NOT_FOUND, ERR_FILE_ID_REQUIRED,
 };
+
+/// Body of a plain text error: `Error: <message>` and a newline.
+fn plain_error_body(message: &str) -> String {
+    format!("Error: {message}\n")
+}
 
 pub fn error_response(error: &str, message: &str, status: u16) -> Result<Response> {
     Ok(Response::from_json(&ErrorResponse {
@@ -11,6 +19,25 @@ pub fn error_response(error: &str, message: &str, status: u16) -> Result<Respons
         message: message.to_string(),
     })?
     .with_status(status))
+}
+
+pub fn with_vary_accept(mut response: Response) -> Result<Response> {
+    response.headers_mut().set(HEADER_VARY, HEADER_ACCEPT)?;
+    Ok(response)
+}
+
+/// Sends `json` as the body for JSON clients and `Error: <message>` for the rest. Both carry `Vary: Accept`.
+pub fn negotiated_error_with_body<T: Serialize>(format: ResponseFormat, json: &T, message: &str, status: u16) -> Result<Response> {
+    let response = match format {
+        ResponseFormat::Json => Response::from_json(json)?,
+        ResponseFormat::Text => Response::ok(plain_error_body(message))?,
+    };
+    with_vary_accept(response.with_status(status))
+}
+
+pub fn negotiated_error_response(format: ResponseFormat, error: &str, message: &str, status: u16) -> Result<Response> {
+    let body = ErrorResponse { error: error.to_string(), message: message.to_string() };
+    negotiated_error_with_body(format, &body, message, status)
 }
 
 pub fn bad_request(error: &str, message: &str) -> Result<Response> {
@@ -46,4 +73,14 @@ pub fn get_required_param<'a>(
         .ok_or_else(|| {
             worker::Error::RustError(format!("Missing parameter: {}", error_msg))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plain_error_body_is_the_message_after_a_prefix_and_ends_with_a_newline() {
+        assert_eq!(plain_error_body("Maximum file size is 25 MB"), "Error: Maximum file size is 25 MB\n");
+    }
 }

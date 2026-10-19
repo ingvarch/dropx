@@ -23,7 +23,7 @@ A file transfer service built with Rust on Cloudflare Workers, inspired by trans
 ## Usage
 
 ```bash
-# Upload (the response is JSON with the download URL and the delete URL)
+# Upload (the response is the download link; add -H "Accept: application/json" for JSON)
 curl --upload-file ./file.txt https://dropx.click/file.txt
 
 # Download

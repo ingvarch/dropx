@@ -353,6 +353,7 @@ section h2 {
 
 .code-block code {
     color: hsl(168 76% 62%);
+    white-space: pre-wrap;
 }
 
 .comment {
