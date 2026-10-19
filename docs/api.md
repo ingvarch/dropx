@@ -32,7 +32,7 @@ curl --upload-file ./big.zip -H "X-API-Key: tfr_xxxxx" https://dropx.click/big.z
 | Header | Required | Meaning |
 |--------|----------|---------|
 | `X-API-Key` | no | API key. Raises the limits to the key's tier. An unknown or revoked key gives `401`. |
-| `Max-Downloads` | no | Delete the file after this many downloads. Must be a positive integer; any other value is ignored. |
+| `Max-Downloads` | no | Stop serving the file after this many downloads. The cleanup job deletes it within an hour. Must be a positive integer; any other value is ignored. |
 | `Max-Age-Days` | no | Keep the file this many days instead of the tier default. Rules in [limits.md](limits.md#retention). |
 
 The `Content-Type` of the request is ignored. The type is detected from the first bytes of the file (PDF, JPEG, PNG, GIF, ZIP, RAR, gzip, XML, JSON) and then from the file name extension. Unknown files get `application/octet-stream`.
@@ -83,11 +83,9 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 | `X-Download-Count` | Downloads before this one (the first download shows `0`) |
 | `X-Expires-At` | Expiry time |
 
-Every download request adds one to the counter. When the counter reaches `Max-Downloads`, the file is deleted.
+Every download request adds one to the counter. When the counter reaches `Max-Downloads`, the file is no longer served: the download that reaches the limit succeeds, and the next request returns `404`. The cleanup job deletes the file within an hour.
 
-The file is read before it is deleted, so the download that reaches the limit succeeds. The next request returns `404`.
-
-A file is available while the current time is before `expires_at`. After that, the download routes and `/:id/info` return `404`, `File not found`, as for an unknown ID. [Delete](#delete) still works until the daily cleanup job removes the file. See [architecture.md](architecture.md#cleanup-job).
+A file is available while the current time is before `expires_at`. After that, the download routes and `/:id/info` return `404`, `File not found`, as for an unknown ID. [Delete](#delete) still works until the hourly cleanup job removes the file. See [architecture.md](architecture.md#cleanup-job).
 
 ### Errors
 

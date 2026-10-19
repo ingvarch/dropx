@@ -72,8 +72,8 @@ curl https://dropx.click/admin/stats -H "X-Admin-Token: $ADMIN_TOKEN"
 }
 ```
 
-- `total_files`: rows in the `files` table, including expired files the cleanup job has not removed yet.
-- `active_files`: files whose expiry time is in the future.
+- `total_files`: rows in the `files` table, including expired and used-up files the cleanup job has not removed yet.
+- `active_files`: files that are still served: not expired and below their download limit.
 - `api_keys_count`: API keys that are not revoked.
 
 ## Reset a rate limit

@@ -49,12 +49,12 @@ Each upload gets an expiry time (`expires_at`) when it is stored.
   - `N` of 0 or negative: `400`, `Retention period must be at least 1 day`.
   - A value that is not an integer is ignored, and the default applies.
 
-After `expires_at`, the download routes and `/:id/info` return `404`. Delete with the token still works until the daily cleanup job removes the file. See [api.md](api.md#delete) and [architecture.md](architecture.md#cleanup-job).
+After `expires_at`, the download routes and `/:id/info` return `404`. Delete with the token still works until the hourly cleanup job removes the file. See [api.md](api.md#delete) and [architecture.md](architecture.md#cleanup-job).
 
 ## Max-Downloads
 
-`Max-Downloads: N` deletes the file after `N` downloads. There is no tier limit on `N`. A value that is not a positive integer is ignored, and the file has no download limit.
+`Max-Downloads: N` stops serving the file after `N` downloads. The cleanup job deletes it within an hour. There is no tier limit on `N`. A value that is not a positive integer is ignored, and the file has no download limit.
 
-`Max-Downloads` and `Max-Age-Days` work together: the file is removed by whichever comes first, the download count reaching `N` or the expiry time passing.
+`Max-Downloads` and `Max-Age-Days` work together: the file stops being served at whichever comes first, the download count reaching `N` or the expiry time passing.
 
 Details of the download count are in [api.md](api.md#download).

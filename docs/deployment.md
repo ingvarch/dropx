@@ -54,7 +54,7 @@ Apply `0004` right before you deploy the version that hashes secrets; `bun run d
 
 ### Cron trigger
 
-The cleanup job runs daily at 02:00 UTC (`crons = ["0 2 * * *"]` in `wrangler.toml`). `wrangler deploy` registers it. What the job does is in [architecture.md](architecture.md#cleanup-job).
+The cleanup job runs every hour (`crons = ["0 * * * *"]` in `wrangler.toml`). `wrangler deploy` registers it. What the job does is in [architecture.md](architecture.md#cleanup-job).
 
 ## Secrets
 

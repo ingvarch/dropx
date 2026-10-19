@@ -1,5 +1,5 @@
 use worker::{Request, Response, RouteContext, Result, Headers, console_log};
-use crate::services::{remove_file, StorageService, DatabaseService};
+use crate::services::{StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
 use crate::utils::content_disposition::{get_content_disposition, DispositionType};
 use crate::utils::constants::{
@@ -28,8 +28,8 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
     };
 
     let bucket = StorageService::get_bucket(&ctx.env)?;
-    let file_data = match StorageService::download_file(&bucket, file_id).await? {
-        Some(data) => data,
+    let file_body = match StorageService::open_file(&bucket, file_id).await? {
+        Some(body) => body,
         None => {
             return not_found(
                 "File not found in storage",
@@ -40,15 +40,6 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
 
     if let Err(e) = DatabaseService::increment_download_count(&ctx.env, file_id).await {
         console_log!("Failed to count download of {}: {:?}", file_id, e);
-    }
-
-    if let Some(max_downloads) = file_metadata.max_downloads {
-        let new_download_count = file_metadata.download_count + 1;
-        if new_download_count >= max_downloads {
-            if let Err(e) = remove_file(&ctx.env, &bucket, file_id).await {
-                console_log!("Failed to remove file after max downloads: {:?}", e);
-            }
-        }
     }
 
     let headers = Headers::new();
@@ -65,5 +56,5 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
     headers.set(HEADER_DOWNLOAD_COUNT, &file_metadata.download_count.to_string())?;
     headers.set(HEADER_EXPIRES_AT, &file_metadata.expires_at.to_string())?;
 
-    Ok(Response::from_bytes(file_data)?.with_headers(headers))
+    Ok(Response::from_body(file_body)?.with_headers(headers))
 }

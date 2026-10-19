@@ -1,6 +1,6 @@
 # AGENTS.md
 
-DropX is a file transfer service: a Rust Cloudflare Worker on worker-rs 0.8, built with worker-build. It uses R2 (files), D1 (metadata, API keys), a Durable Object (`RateLimiter`) and a daily cron trigger (cleanup). This is not a standard Rust application: it compiles to wasm32.
+DropX is a file transfer service: a Rust Cloudflare Worker on worker-rs 0.8, built with worker-build. It uses R2 (files), D1 (metadata, API keys), a Durable Object (`RateLimiter`) and an hourly cron trigger (cleanup). This is not a standard Rust application: it compiles to wasm32.
 
 ## Docs
 

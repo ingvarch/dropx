@@ -91,7 +91,7 @@ The rules for code, tests and commits are in [AGENTS.md](../AGENTS.md).
 dropx/
 ├── src/
 │   ├── lib.rs                  # Router, fetch and scheduled entry points
-│   ├── cleanup.rs              # Cron job: remove expired files
+│   ├── cleanup.rs              # Cron job: remove expired and used-up files
 │   ├── handlers/
 │   │   ├── landing.rs          # GET, HEAD /
 │   │   ├── upload.rs           # POST /, PUT /:filename

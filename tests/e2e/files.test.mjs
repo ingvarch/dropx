@@ -82,7 +82,7 @@ test('delete with a wrong token keeps the file', async () => {
   assert.equal((await request(`/${file.id}`)).status, 200);
 });
 
-test('Max-Downloads deletes the file after the last allowed download', async () => {
+test('Max-Downloads stops serving the file after the last allowed download', async () => {
   const file = await uploadOk('hello', { headers: { 'Max-Downloads': '1' } });
 
   const first = await request(`/${file.id}`);
@@ -234,7 +234,7 @@ test('the cleanup job keeps the row of a file whose R2 delete failed', async () 
   assert.equal(await fileRowExists(rejectedKey), true, 'row of failed R2 delete removed');
 });
 
-// A row left behind by a failed removal after the last allowed download.
+// The row stays until the cleanup job removes it.
 test('a file whose download limit is used up is not served again', async () => {
   const file = await uploadOk('once only', { headers: { 'Max-Downloads': '1' } });
   await d1Raw('UPDATE files SET download_count = 1 WHERE id = ?1', [file.id]);
@@ -333,4 +333,58 @@ test('upload links start with the Worker origin and work as returned', async () 
 
   const deleted = await request(file.delete_url, { method: 'DELETE' });
   assert.equal(deleted.status, 200);
+});
+
+function uniqueBody(char, base) {
+  return char.repeat(base + Math.floor(Math.random() * 100000));
+}
+
+test('the last allowed download leaves the object in R2 until the cleanup job runs', async () => {
+  const body = uniqueBody('m', 4000);
+  const file = await uploadOk(body, { headers: { 'Max-Downloads': '1' } });
+
+  const first = await request(`/${file.id}`);
+  assert.equal(first.status, 200);
+  assert.equal(await first.text(), body);
+  assert.equal((await request(`/${file.id}`)).status, 404);
+  assert.equal(await fileRowExists(file.id), true, 'row removed by the download');
+  assert.ok((await listR2ObjectSizes()).includes(body.length), 'object removed by the download');
+
+  await runScheduledCleanup();
+
+  assert.equal(await fileRowExists(file.id), false, 'row left in D1');
+  assert.ok(!(await listR2ObjectSizes()).includes(body.length), 'object left in R2');
+});
+
+test('the cleanup job keeps files below their download limit and files without a limit', async () => {
+  const limitedBody = uniqueBody('n', 5000);
+  const unlimitedBody = 'o'.repeat(limitedBody.length + 1);
+  const limited = await uploadOk(limitedBody, { headers: { 'Max-Downloads': '2' } });
+  const unlimited = await uploadOk(unlimitedBody);
+  assert.equal((await request(`/${limited.id}`)).status, 200);
+
+  await runScheduledCleanup();
+
+  assert.equal(await fileRowExists(limited.id), true, 'row below its limit removed');
+  assert.equal(await fileRowExists(unlimited.id), true, 'row without a limit removed');
+  const sizes = await listR2ObjectSizes();
+  assert.ok(sizes.includes(limitedBody.length), 'object below its limit removed');
+  assert.ok(sizes.includes(unlimitedBody.length), 'object without a limit removed');
+});
+
+test('a large download returns the uploaded bytes and the Content-Length', async () => {
+  const size = 20 * 1024 * 1024;
+  const body = new Uint8Array(size);
+  for (let offset = 0; offset < size; offset += 65536) {
+    crypto.getRandomValues(body.subarray(offset, offset + 65536));
+  }
+  const file = await uploadOk(body, { filename: 'large.bin' });
+
+  const response = await request(`/${file.id}`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Content-Length'), String(size));
+  const received = new Uint8Array(await response.arrayBuffer());
+  assert.equal(received.length, size);
+  assert.equal(sha256Hex(received), sha256Hex(body));
 });
