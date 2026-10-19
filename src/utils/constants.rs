@@ -53,8 +53,12 @@ pub const HEADER_RETRY_AFTER: &str = "Retry-After";
 pub const HEADER_HOST: &str = "Host";
 pub const HEADER_DOWNLOAD_COUNT: &str = "X-Download-Count";
 pub const HEADER_EXPIRES_AT: &str = "X-Expires-At";
+pub const HEADER_CONTENT_TYPE_OPTIONS: &str = "X-Content-Type-Options";
 pub const HEADER_MAX_DOWNLOADS: &str = "Max-Downloads";
 pub const HEADER_MAX_AGE_DAYS: &str = "Max-Age-Days";
+
+pub const CONTENT_TYPE_OPTIONS_NOSNIFF: &str = "nosniff";
+pub const INLINE_ACTIVE_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
 
 pub const DO_RATE_LIMITER_BASE_URL: &str = "http://rate-limiter";
 pub const DO_RATE_LIMITER_PATH_CHECK: &str = "/check";

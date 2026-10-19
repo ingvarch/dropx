@@ -68,18 +68,19 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 
 ## Download
 
-`GET /:id`, `GET /get/:id`, `GET /inline/:id`. The three routes differ only in `Content-Disposition`:
+`GET /:id`, `GET /get/:id`, `GET /inline/:id`. The routes differ in `Content-Disposition`, and `/inline/:id` also changes `Content-Type` for HTML, SVG and XML:
 
-- `/:id` sends `inline` for images (JPEG, PNG, GIF, WebP, SVG), PDF, plain text, HTML, CSS, JavaScript, MP4, WebM, MP3, OGG and WAV, and `attachment` for everything else.
+- `/:id` sends `inline` for images (JPEG, PNG, GIF, WebP), PDF, plain text, CSS, JavaScript, MP4, WebM, MP3, OGG and WAV, and `attachment` for everything else. HTML, SVG and XML files are sent as `attachment`, so the browser saves them and does not open them as a page.
 - `/get/:id` always sends `attachment`.
-- `/inline/:id` always sends `inline`.
+- `/inline/:id` always sends `inline`. HTML, SVG and XML files are sent with `Content-Type: text/plain; charset=utf-8`, so the browser shows their source text. Other files keep their detected type.
 
 ### Response headers
 
 | Header | Value |
 |--------|-------|
-| `Content-Type` | The detected type |
+| `Content-Type` | The detected type. `/inline/:id` sends `text/plain; charset=utf-8` for HTML, SVG and XML |
 | `Content-Disposition` | `inline` or `attachment`, with the original file name |
+| `X-Content-Type-Options` | `nosniff` |
 | `Content-Length` | File size in bytes |
 | `X-Download-Count` | Downloads before this one (the first download shows `0`) |
 | `X-Expires-At` | Expiry time |

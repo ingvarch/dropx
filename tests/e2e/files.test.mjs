@@ -120,6 +120,52 @@ for (const [route, disposition] of [['get', 'attachment'], ['inline', 'inline']]
   });
 }
 
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+const HTML_BODY = '<html><script>alert(1)</script></html>';
+const SVG_BODY = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+const XML_BODY = '<?xml version="1.0"?><root/>';
+
+async function assertDownload(path, { type, disposition, body }) {
+  const response = await request(path);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Content-Type'), type);
+  assert.equal(response.headers.get('Content-Disposition'), disposition);
+  assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from(body));
+}
+
+test('an HTML upload is never shown as a page', async () => {
+  const file = await uploadOk(HTML_BODY, { filename: 'login.html' });
+
+  await assertDownload(`/${file.id}`, { type: 'text/html', disposition: 'attachment; filename="login.html"', body: HTML_BODY });
+  await assertDownload(`/inline/${file.id}`, { type: 'text/plain; charset=utf-8', disposition: 'inline; filename="login.html"', body: HTML_BODY });
+  await assertDownload(`/get/${file.id}`, { type: 'text/html', disposition: 'attachment; filename="login.html"', body: HTML_BODY });
+});
+
+test('an SVG upload is never shown as an image page', async () => {
+  const file = await uploadOk(SVG_BODY, { filename: 'logo.svg' });
+
+  await assertDownload(`/${file.id}`, { type: 'image/svg+xml', disposition: 'attachment; filename="logo.svg"', body: SVG_BODY });
+  await assertDownload(`/inline/${file.id}`, { type: 'text/plain; charset=utf-8', disposition: 'inline; filename="logo.svg"', body: SVG_BODY });
+});
+
+test('content that starts with <?xml is shown as text on /inline/:id', async () => {
+  const file = await uploadOk(XML_BODY, { filename: 'data.bin' });
+
+  await assertDownload(`/inline/${file.id}`, { type: 'text/plain; charset=utf-8', disposition: 'inline; filename="data.bin"', body: XML_BODY });
+  await assertDownload(`/${file.id}`, { type: 'application/xml', disposition: 'attachment; filename="data.bin"', body: XML_BODY });
+});
+
+test('passive files keep their type and inline display on /:id', async () => {
+  const text = await uploadOk('hello', { filename: 'hello.txt' });
+  const png = await uploadOk(PNG_BYTES, { filename: 'pic.png' });
+
+  await assertDownload(`/${text.id}`, { type: 'text/plain', disposition: 'inline; filename="hello.txt"', body: 'hello' });
+  await assertDownload(`/inline/${text.id}`, { type: 'text/plain', disposition: 'inline; filename="hello.txt"', body: 'hello' });
+  await assertDownload(`/${png.id}`, { type: 'image/png', disposition: 'inline; filename="pic.png"', body: PNG_BYTES });
+  await assertDownload(`/get/${png.id}`, { type: 'image/png', disposition: 'attachment; filename="pic.png"', body: PNG_BYTES });
+});
+
 test('Max-Age-Days shortens the retention', async () => {
   const file = await uploadOk('hello', { headers: { 'Max-Age-Days': '1' } });
 
