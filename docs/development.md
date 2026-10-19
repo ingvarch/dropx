@@ -73,10 +73,11 @@ cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
 cargo check
 cargo test
+bun run test:scripts
 bun run test:e2e
 ```
 
-`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `bun run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with `bun test` and stops the Worker. It generates a random `ADMIN_TOKEN` and `IP_HASH_KEY` for the run and does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
+`cargo test` covers the pure helpers. Unit tests must call project code: do not assert constants or a copy of the logic. `bun run test:scripts` runs the unit tests of the maintainer scripts in `scripts/` with `bun test`. `bun run test:e2e` covers the HTTP behavior: it applies the migrations to a fresh temporary state, starts the Worker with `wrangler dev` on a free port, runs `tests/e2e/*.test.mjs` with `bun test` and stops the Worker. It generates a random `ADMIN_TOKEN` and `IP_HASH_KEY` for the run and does not touch `.wrangler/state` or `.dev.vars`. Each test sends requests from its own random `CF-Connecting-IP`, so tests do not share rate limit counters.
 
 GitHub Actions runs the same checks on every pull request and on `main` (`.github/workflows/ci.yml`).
 
@@ -124,11 +125,14 @@ dropx/
 ├── tests/e2e/                  # End-to-end tests against wrangler dev
 │   ├── run.mjs                 # Starts the Worker, runs the tests, stops it
 │   └── helpers.mjs             # Request helpers shared by the tests
+├── scripts/
+│   ├── release.mjs             # bun run release: bump, commit, tag, push
+│   └── release.test.mjs        # Unit tests for its version helpers
 ├── migrations/                 # D1 migrations
 ├── docs/                       # Documentation
 ├── .github/workflows/ci.yml    # Checks on pull requests and main
 ├── Cargo.toml
-├── package.json                # wrangler, the e2e test and deploy scripts
+├── package.json                # wrangler, the test, deploy and release scripts
 ├── bun.lock                    # Locked dev dependency versions
 ├── wrangler.toml               # Bindings, cron trigger, build command
 ├── .dev.vars.example           # Template for local secrets
