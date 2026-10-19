@@ -2,8 +2,9 @@ pub const BYTES_PER_KB: usize = 1024;
 pub const BYTES_PER_MB: usize = 1024 * BYTES_PER_KB;
 
 pub const ANON_MAX_FILE_SIZE: usize = 25 * BYTES_PER_MB;
+// Standard and premium: the Pro plan's request body limit. Cloudflare rejects larger bodies before they reach the Worker.
 pub const STANDARD_MAX_FILE_SIZE: usize = 100 * BYTES_PER_MB;
-pub const PREMIUM_MAX_FILE_SIZE: usize = 500 * BYTES_PER_MB;
+pub const PREMIUM_MAX_FILE_SIZE: usize = 100 * BYTES_PER_MB;
 pub const MAX_BUFFERED_UPLOAD_SIZE: usize = 25 * BYTES_PER_MB;
 pub const MIME_SNIFF_BYTES: u64 = 16;
 
