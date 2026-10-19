@@ -121,5 +121,5 @@ What the code does:
 - HTML, SVG and XML files are never served as pages: `/:id` sends them as attachments, `/inline/:id` sends them as `text/plain`, and every download sends `X-Content-Type-Options: nosniff`.
 - Deleting needs the delete token that only the uploader receives.
 - Anyone who knows a file ID can download it. There is no per-file access control.
-- Files are stored as uploaded. The service does not encrypt them. The landing page shows how to encrypt with GPG or OpenSSL before upload.
+- Files are stored as uploaded. The service does not encrypt them. The landing page shows how to encrypt with GPG or age before upload.
 - Files are removed on expiry, on delete, or after `Max-Downloads` is reached (the cleanup job deletes it within an hour).
