@@ -1,5 +1,3 @@
-use crate::utils::constants::MIN_MAGIC_BYTES_LENGTH;
-
 pub fn detect_mime_type(filename: &str, bytes: &[u8]) -> String {
     if let Some(mime) = detect_from_magic_bytes(bytes) {
         return mime;
@@ -9,10 +7,6 @@ pub fn detect_mime_type(filename: &str, bytes: &[u8]) -> String {
 }
 
 fn detect_from_magic_bytes(bytes: &[u8]) -> Option<String> {
-    if bytes.len() < MIN_MAGIC_BYTES_LENGTH {
-        return None;
-    }
-
     match bytes {
         [0x25, 0x50, 0x44, 0x46, ..] => Some("application/pdf".to_string()),
         [0xFF, 0xD8, 0xFF, ..] => Some("image/jpeg".to_string()),
@@ -109,5 +103,21 @@ mod tests {
             detect_mime_type("unknown.xyz", &bytes),
             "application/octet-stream"
         );
+    }
+
+    #[test]
+    fn short_json_is_detected_by_content() {
+        assert_eq!(detect_mime_type("data", b"{}"), "application/json");
+        assert_eq!(detect_mime_type("data", b"["), "application/json");
+    }
+
+    #[test]
+    fn two_byte_gzip_header_is_detected() {
+        assert_eq!(detect_mime_type("data", &[0x1F, 0x8B]), "application/gzip");
+    }
+
+    #[test]
+    fn empty_body_falls_back_to_the_extension() {
+        assert_eq!(detect_mime_type("notes.txt", &[]), "text/plain");
     }
 }
