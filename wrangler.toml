@@ -34,9 +34,9 @@ script_name = "dropx"
 tag = "v1"
 new_sqlite_classes = ["RateLimiter"]
 
-# Cron Trigger - Daily at 2AM UTC
+# Cron Trigger - Hourly
 [triggers]
-crons = ["0 2 * * *"]
+crons = ["0 * * * *"]
 
 # Secrets (set via: wrangler secret put <NAME>)
 # ADMIN_TOKEN - Admin API authentication token

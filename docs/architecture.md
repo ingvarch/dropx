@@ -8,7 +8,7 @@
 | R2 bucket (binding `TRANSFER_BUCKET`) | Stores file contents |
 | D1 database (binding `DB`) | Stores file metadata and API keys |
 | Durable Object `RateLimiter` (binding `RATE_LIMITER`) | Counts uploads per client |
-| Cron trigger | Starts the cleanup job once a day |
+| Cron trigger | Starts the cleanup job every hour |
 
 Code layout is in [development.md](development.md#project-structure). The router is in `src/lib.rs`. Handlers call services (`database`, `storage`, `rate_limiter`), and services talk to the bindings.
 
@@ -30,10 +30,11 @@ A request that fails in steps 2 to 4 stores no file: nothing is written to R2 an
 `GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path and differ only in `Content-Disposition`:
 
 1. Read the metadata row from D1. No row, a row with `expires_at` in the past, or a row whose `download_count` has reached `max_downloads`, returns `404`.
-2. Read the object from R2. No object returns `404`.
+2. Open the object in R2. No object returns `404`.
 3. Add one to `download_count` in D1.
-4. If `max_downloads` is set and the new count has reached it, delete the object from R2, then the row from D1. If the object delete fails, the row stays, step 1 no longer serves it, and the cleanup job removes it after it expires. The download still succeeds.
-5. Return the bytes with the headers listed in [api.md](api.md#download).
+4. Stream the object body from R2 into the response with the headers listed in [api.md](api.md#download). The Worker does not read the file into memory, so the size of a file is not limited by the Worker memory.
+
+The download never deletes a file. When the new count reaches `max_downloads`, step 1 returns `404` for the next request, and the cleanup job removes the file.
 
 ## Delete flow
 
@@ -44,7 +45,7 @@ A request that fails in steps 2 to 4 stores no file: nothing is written to R2 an
 3. Delete the object from R2, then the row from D1. If the object delete fails, the row stays and the request returns `500`. The file can be deleted again, and the cleanup job removes it after it expires.
 4. Return `200`.
 
-Every removal (delete, `Max-Downloads`, cleanup) goes through `remove_file` in `src/services/file_removal.rs`.
+Every removal (delete and the cleanup job) goes through `remove_file` in `src/services/file_removal.rs`.
 
 ## Storage path
 
@@ -96,13 +97,13 @@ One Durable Object per client, named by the client identity (the SHA-256 of the 
 
 ## Cleanup job
 
-The cron trigger runs `cleanup::run_cleanup` daily at 02:00 UTC:
+The cron trigger runs `cleanup::run_cleanup` every hour, at minute 0:
 
-1. Select the IDs of rows with `expires_at` at or before now: the same rows the download routes no longer serve.
+1. Select the IDs of rows with `expires_at` at or before now, and rows whose `download_count` has reached `max_downloads`: the same rows the download routes no longer serve.
 2. For each file, delete the object from R2, then the row from D1. A failure is logged.
 3. A row whose R2 delete failed stays, and the next run retries it.
 
-Expired files are already unavailable before this job runs: the download and info routes skip rows with `expires_at` in the past, and only delete still finds them. The job frees their storage.
+Expired files are already unavailable before this job runs: the download and info routes skip rows with `expires_at` in the past, and only delete still finds them. The job frees their storage. A file that used up its `Max-Downloads` stays in storage until the next run, at most one hour.
 
 ## IDs and tokens
 
@@ -120,4 +121,4 @@ What the code does:
 - Deleting needs the delete token that only the uploader receives.
 - Anyone who knows a file ID can download it. There is no per-file access control.
 - Files are stored as uploaded. The service does not encrypt them. The landing page shows how to encrypt with GPG or OpenSSL before upload.
-- Files are removed on expiry, on delete, or when `Max-Downloads` is reached.
+- Files are removed on expiry, on delete, or after `Max-Downloads` is reached (the cleanup job deletes it within an hour).

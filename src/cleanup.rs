@@ -4,12 +4,12 @@ use crate::services::{remove_file, DatabaseService, StorageService};
 pub async fn run_cleanup(env: &Env) -> Result<()> {
     console_log!("Starting cleanup job...");
 
-    let file_ids = DatabaseService::get_expired_file_ids(env).await?;
+    let file_ids = DatabaseService::get_removable_file_ids(env).await?;
 
-    console_log!("Found {} expired files", file_ids.len());
+    console_log!("Found {} files to remove (expired or download limit reached)", file_ids.len());
 
     if file_ids.is_empty() {
-        console_log!("No expired files to clean up");
+        console_log!("No files to clean up");
         return Ok(());
     }
 

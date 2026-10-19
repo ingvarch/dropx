@@ -1,4 +1,4 @@
-use worker::{Bucket, Env, Result};
+use worker::{Bucket, Env, Result, ResponseBody};
 use crate::utils::constants::TRANSFER_BUCKET_NAME;
 use crate::utils::generate_storage_path;
 
@@ -15,20 +15,15 @@ impl StorageService {
         Ok(())
     }
 
-    pub async fn download_file(bucket: &Bucket, file_id: &str) -> Result<Option<Vec<u8>>> {
+    pub async fn open_file(bucket: &Bucket, file_id: &str) -> Result<Option<ResponseBody>> {
         let storage_path = generate_storage_path(file_id);
-        let object = bucket.get(&storage_path).execute().await?;
-
-        match object {
-            Some(obj) => {
-                let body = obj.body().ok_or_else(|| {
-                    worker::Error::RustError("Failed to get object body".to_string())
-                })?;
-                let bytes = body.bytes().await?;
-                Ok(Some(bytes))
-            }
-            None => Ok(None),
-        }
+        let Some(object) = bucket.get(&storage_path).execute().await? else {
+            return Ok(None);
+        };
+        let body = object
+            .body()
+            .ok_or_else(|| worker::Error::RustError("Failed to get object body".to_string()))?;
+        body.response_body().map(Some)
     }
 
     pub async fn delete_file(bucket: &Bucket, file_id: &str) -> Result<()> {

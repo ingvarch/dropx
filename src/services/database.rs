@@ -13,6 +13,9 @@ fn rows_matched(meta: Option<worker::D1ResultMeta>) -> Result<bool> {
 
 pub struct DatabaseService;
 
+/// Such a file is no longer served, and the cleanup job removes it.
+const DOWNLOAD_LIMIT_REACHED: &str = "(max_downloads IS NOT NULL AND download_count >= max_downloads)";
+
 #[derive(Deserialize)]
 struct DeleteTokenRow {
     delete_token: String,
@@ -101,11 +104,9 @@ impl DatabaseService {
 
     pub async fn get_file(env: &worker::Env, file_id: &str) -> Result<Option<FileMetadata>> {
         let d1 = Self::get_db(env)?;
-        // Expired files and files whose download limit is used up are not served.
-        let statement = d1.prepare(
-            "SELECT * FROM files WHERE id = ?1 AND expires_at > ?2 \
-             AND (max_downloads IS NULL OR download_count < max_downloads)",
-        );
+        let statement = d1.prepare(format!(
+            "SELECT * FROM files WHERE id = ?1 AND expires_at > ?2 AND NOT {DOWNLOAD_LIMIT_REACHED}"
+        ));
         let query = statement.bind(&[file_id.into(), (current_timestamp() as f64).into()])?;
 
         match query.first::<FileRow>(None).await? {
@@ -129,9 +130,11 @@ impl DatabaseService {
         Ok(())
     }
 
-    pub async fn get_expired_file_ids(env: &worker::Env) -> Result<Vec<String>> {
+    pub async fn get_removable_file_ids(env: &worker::Env) -> Result<Vec<String>> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("SELECT id FROM files WHERE expires_at <= ?1");
+        let statement = d1.prepare(format!(
+            "SELECT id FROM files WHERE expires_at <= ?1 OR {DOWNLOAD_LIMIT_REACHED}"
+        ));
         let query = statement.bind(&[(current_timestamp() as f64).into()])?;
         let results = query.all().await?;
 
@@ -218,7 +221,9 @@ impl DatabaseService {
             .and_then(|r| r.total)
             .unwrap_or(0);
 
-        let active_files = d1.prepare("SELECT COUNT(*) as count FROM files WHERE expires_at > ?1")
+        let active_files = d1.prepare(format!(
+                "SELECT COUNT(*) as count FROM files WHERE expires_at > ?1 AND NOT {DOWNLOAD_LIMIT_REACHED}"
+            ))
             .bind(&[(now as f64).into()])?
             .first::<CountResult>(None)
             .await?

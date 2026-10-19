@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'bun:test';
-import { ADMIN_TOKEN, adminRequest, createApiKey, createApiKeyResponse, request, upload, uploadOk } from './helpers.mjs';
+import { ADMIN_TOKEN, adminRequest, createApiKey, createApiKeyResponse, pathOf, request, upload, uploadOk } from './helpers.mjs';
 
 test('admin routes need the admin token', async () => {
   const response = await request('/admin/stats');
@@ -74,4 +74,15 @@ test('revoking the same API key twice returns 200 both times', async () => {
     const response = await adminRequest(`/admin/api-keys/${key}`, { method: 'DELETE' });
     assert.equal(response.status, 200);
   }
+});
+
+test('active_files does not count a file whose download limit is used up', async () => {
+  const activeFiles = async () => (await (await adminRequest('/admin/stats')).json()).active_files;
+  const before = await activeFiles();
+
+  const file = await uploadOk('once', { headers: { 'Max-Downloads': '1' } });
+  assert.equal(await activeFiles(), before + 1);
+
+  assert.equal((await request(pathOf(file.url))).status, 200);
+  assert.equal(await activeFiles(), before);
 });
