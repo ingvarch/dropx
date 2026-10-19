@@ -493,3 +493,13 @@ for (const [name, send] of [
     assert.equal((await downloaded.arrayBuffer()).byteLength, 0);
   });
 }
+
+test('a premium upload over 100 MB, the Cloudflare Pro plan body limit, returns 413', async () => {
+  const cloudflareProLimit = 100 * 1024 * 1024;
+  const key = await createApiKey('premium');
+
+  const response = await upload(Buffer.alloc(cloudflareProLimit + 1), { headers: { 'X-API-Key': key } });
+
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).max_size, cloudflareProLimit);
+});

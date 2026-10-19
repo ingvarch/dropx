@@ -63,7 +63,7 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 | 400 | `Max-Age-Days` is 0 or negative, or above the tier maximum | JSON, `error` is `Invalid retention period` |
 | 401 | `X-API-Key` is unknown or revoked | JSON, `error` is `Invalid API key` |
 | 411 | No `Content-Length` and the body is over 25 MB, for a tier that allows more | JSON, `error` is `Length required`. Send `Content-Length`, see [limits.md](limits.md#file-size) |
-| 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes. Checked from `Content-Length` before the rate limit when the header is present |
+| 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes. Checked from `Content-Length` before the rate limit when the header is present. A body over 100 MB is rejected by Cloudflare before the Worker, with an HTML page; see [limits.md](limits.md#file-size) |
 | 429 | Hourly or daily upload limit reached | JSON, `error` is `Rate limit exceeded`, `message` names the window (`Hourly rate limit exceeded` or `Daily rate limit exceeded`). The `Retry-After` header holds the seconds until the window resets |
 
 ## Download
