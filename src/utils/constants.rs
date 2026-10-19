@@ -80,6 +80,7 @@ pub const ERR_FILE_ID_REQUIRED: &str = "File ID is required";
 pub const ERR_INVALID_RETENTION: &str = "Invalid retention period";
 pub const ERR_UNAUTHORIZED: &str = "Unauthorized";
 pub const ERR_NOT_FOUND: &str = "NotFound";
+pub const MSG_FILE_DELETED: &str = "File deleted successfully";
 
 pub const UNKNOWN_IP_ADDRESS: &str = "unknown";
 pub const DEFAULT_FILENAME: &str = "file";

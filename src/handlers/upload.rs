@@ -11,7 +11,7 @@ use crate::utils::constants::{
     UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
 use crate::utils::content_negotiation::ResponseFormat;
-use crate::utils::response::{negotiated_error_response, negotiated_error_with_body, with_vary_accept};
+use crate::utils::response::{negotiated_error_response, negotiated_error_with_body, negotiated_response};
 use crate::utils::upload_body::{body_plan, buffer_overflow, BodyPlan, BodyRejection};
 
 #[derive(Debug, PartialEq)]
@@ -225,11 +225,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         delete_url: delete_url.clone(),
     };
 
-    let response = match format {
-        ResponseFormat::Json => Response::from_json(&body)?,
-        ResponseFormat::Text => Response::ok(format!("{url}\n"))?,
-    };
-    let mut response = with_vary_accept(response)?;
+    let mut response = negotiated_response(format, &body, format!("{url}\n"))?;
     response.headers_mut().set(HEADER_URL_DELETE, &delete_url)?;
     Ok(response)
 }

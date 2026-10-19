@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'bun:test';
-import { chunkedBody, createApiKey, newClientIp, pathOf, request, upload } from './helpers.mjs';
+import { chunkedBody, createApiKey, newClientIp, pathOf, request, upload, uploadOk } from './helpers.mjs';
 
 const ANON_MAX_FILE_SIZE = 25 * 1024 * 1024;
 const ANON_HOURLY_LIMIT = 10;
 const TEXT_TYPE = 'text/plain; charset=utf-8';
+const JSON_ACCEPT = { Accept: 'application/json' };
 
 // Bun's fetch sends `Accept: */*` when none is set, so this is also what a client without Accept sends.
 function plainUpload(body, { headers, ...options } = {}) {
@@ -131,4 +132,56 @@ test('JSON errors keep today\'s bodies and send Vary: Accept', async () => {
     error: 'Invalid API key',
     message: 'The provided API key is invalid or inactive',
   });
+});
+
+test('delete without a JSON Accept answers plain text and removes the file', async () => {
+  const file = await uploadOk('delete me');
+
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE' });
+
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.headers.get('Content-Type'), TEXT_TYPE);
+  assert.match(deleted.headers.get('Vary'), /Accept/i);
+  assert.equal(await deleted.text(), 'File deleted successfully\n');
+  assert.equal((await request(`/${file.id}`)).status, 404);
+});
+
+test('delete with a wrong token answers plain text 404 and keeps the file', async () => {
+  const file = await uploadOk('keep me');
+
+  const deleted = await request(`/${file.id}/wrongtoken`, { method: 'DELETE' });
+
+  await assertTextError(deleted, 404, 'Invalid delete token');
+  assert.equal((await request(`/${file.id}`)).status, 200);
+});
+
+test('delete of an unknown id answers plain text 404', async () => {
+  const deleted = await request('/doesnotexist/sometoken', { method: 'DELETE' });
+
+  await assertTextError(deleted, 404, 'File not found');
+});
+
+test('delete with Accept: application/json answers the JSON and Vary: Accept', async () => {
+  const file = await uploadOk('json delete');
+
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE', headers: JSON_ACCEPT });
+
+  assert.equal(deleted.status, 200);
+  assert.match(deleted.headers.get('Content-Type'), /^application\/json/);
+  assert.match(deleted.headers.get('Vary'), /Accept/i);
+  assert.deepEqual(await deleted.json(), { success: true, message: 'File deleted successfully' });
+});
+
+test('delete errors with Accept: application/json answer the JSON and Vary: Accept', async () => {
+  const file = await uploadOk('json errors');
+
+  const wrongToken = await request(`/${file.id}/wrongtoken`, { method: 'DELETE', headers: JSON_ACCEPT });
+  assert.equal(wrongToken.status, 404);
+  assert.match(wrongToken.headers.get('Vary'), /Accept/i);
+  assert.deepEqual(await wrongToken.json(), { error: 'Unauthorized', message: 'Invalid delete token' });
+
+  const unknown = await request('/doesnotexist/sometoken', { method: 'DELETE', headers: JSON_ACCEPT });
+  assert.equal(unknown.status, 404);
+  assert.match(unknown.headers.get('Vary'), /Accept/i);
+  assert.deepEqual(await unknown.json(), { error: 'NotFound', message: 'File not found' });
 });

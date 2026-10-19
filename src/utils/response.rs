@@ -21,18 +21,23 @@ pub fn error_response(error: &str, message: &str, status: u16) -> Result<Respons
     .with_status(status))
 }
 
-pub fn with_vary_accept(mut response: Response) -> Result<Response> {
+fn with_vary_accept(mut response: Response) -> Result<Response> {
     response.headers_mut().set(HEADER_VARY, HEADER_ACCEPT)?;
     Ok(response)
 }
 
-/// Sends `json` as the body for JSON clients and `Error: <message>` for the rest. Both carry `Vary: Accept`.
-pub fn negotiated_error_with_body<T: Serialize>(format: ResponseFormat, json: &T, message: &str, status: u16) -> Result<Response> {
+/// Sends `json` as the body for JSON clients and `text` for the rest. Both carry `Vary: Accept`.
+pub fn negotiated_response<T: Serialize>(format: ResponseFormat, json: &T, text: String) -> Result<Response> {
     let response = match format {
         ResponseFormat::Json => Response::from_json(json)?,
-        ResponseFormat::Text => Response::ok(plain_error_body(message))?,
+        ResponseFormat::Text => Response::ok(text)?,
     };
-    with_vary_accept(response.with_status(status))
+    with_vary_accept(response)
+}
+
+/// Sends `json` as the body for JSON clients and `Error: <message>` for the rest. Both carry `Vary: Accept`.
+pub fn negotiated_error_with_body<T: Serialize>(format: ResponseFormat, json: &T, message: &str, status: u16) -> Result<Response> {
+    Ok(negotiated_response(format, json, plain_error_body(message))?.with_status(status))
 }
 
 pub fn negotiated_error_response(format: ResponseFormat, error: &str, message: &str, status: u16) -> Result<Response> {

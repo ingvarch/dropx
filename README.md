@@ -29,7 +29,7 @@ curl --upload-file ./file.txt https://dropx.click/file.txt
 # Download
 curl https://dropx.click/<id> -o file.txt
 
-# Delete
+# Delete (plain text answer; add -H "Accept: application/json" for JSON)
 curl -X DELETE https://dropx.click/<id>/<delete_token>
 ```
 

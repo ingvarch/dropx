@@ -68,7 +68,7 @@ test('unknown file id returns 404', async () => {
 test('delete with the delete token removes the file', async () => {
   const file = await uploadOk('hello');
 
-  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE' });
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE', headers: { Accept: 'application/json' } });
 
   assert.equal(deleted.status, 200);
   assert.equal((await deleted.json()).success, true);
@@ -78,7 +78,7 @@ test('delete with the delete token removes the file', async () => {
 test('delete with a wrong token keeps the file', async () => {
   const file = await uploadOk('hello');
 
-  const deleted = await request(`/${file.id}/wrongtoken`, { method: 'DELETE' });
+  const deleted = await request(`/${file.id}/wrongtoken`, { method: 'DELETE', headers: { Accept: 'application/json' } });
 
   assert.equal(deleted.status, 404);
   assert.equal((await deleted.json()).error, 'Unauthorized');
@@ -244,7 +244,7 @@ test('delete with the delete token still removes an expired file and its object'
   const file = await uploadOk(body);
   await setExpiresAt(file.id, Math.floor(Date.now() / 1000) - 1);
 
-  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE' });
+  const deleted = await request(pathOf(file.delete_url), { method: 'DELETE', headers: { Accept: 'application/json' } });
 
   assert.equal(deleted.status, 200);
   assert.equal((await deleted.json()).success, true);

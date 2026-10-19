@@ -135,12 +135,14 @@ Unknown ID: `404`, `error` is `File not found`.
 
 Delete also works on a file past `expires_at` that the cleanup job has not removed yet.
 
-| Status | Body |
-|--------|------|
-| 200 | `{"success": true, "message": "File deleted successfully"}` |
-| 404 | `error` is `NotFound` (no such file) |
-| 404 | `error` is `Unauthorized` (wrong token) |
-| 500 | Plain text (see [Error format](#error-format)). The object could not be deleted from storage; the file is kept, retry the request |
+The answer follows the `Accept` header like the upload: JSON when it contains `application/json`, plain text otherwise. Plain text answers are `text/plain; charset=utf-8` and end with a newline. Both formats send `Vary: Accept`.
+
+| Status | Plain text (default) | JSON (`Accept: application/json`) |
+|--------|----------------------|-----------------------------------|
+| 200 | `File deleted successfully` | `{"success": true, "message": "File deleted successfully"}` |
+| 404 | `Error: File not found` (no such file) | `error` is `NotFound` |
+| 404 | `Error: Invalid delete token` (wrong token) | `error` is `Unauthorized` |
+| 500 | Plain text (see [Error format](#error-format)). The object could not be deleted from storage; the file is kept, retry the request | Same |
 
 ## Landing page
 
@@ -148,7 +150,7 @@ Delete also works on a file past `expires_at` that the cleanup job has not remov
 
 ## Error format
 
-Upload errors follow the `Accept` header: plain text `Error: <message>` by default, the JSON below with `Accept: application/json`. Errors from the other handlers are always JSON:
+Upload and delete errors follow the `Accept` header: plain text `Error: <message>` by default, the JSON below with `Accept: application/json`. Errors from the other handlers are always JSON:
 
 ```json
 { "error": "File not found", "message": "The requested file does not exist or has expired" }
