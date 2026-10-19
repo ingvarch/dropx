@@ -58,7 +58,7 @@ struct ApiKeyRow {
     created_at: i64,
     last_used_at: Option<i64>,
     is_active: i64,
-    tier: String,
+    tier: ApiKeyTier,
 }
 
 #[derive(Deserialize)]
@@ -190,7 +190,7 @@ impl DatabaseService {
                     created_at: row.created_at,
                     last_used_at: row.last_used_at,
                     is_active: row.is_active == DB_BOOL_TRUE,
-                    tier: ApiKeyTier::from_str(&row.tier),
+                    tier: row.tier,
                 }))
             }
             None => Ok(None),
@@ -339,36 +339,23 @@ mod tests {
         assert_eq!(metadata.max_downloads, Some(1000));
     }
 
-    #[test]
-    fn test_api_key_tier_from_str_standard() {
-        let tier_str = "standard";
-        let tier = ApiKeyTier::from_str(tier_str);
-        assert_eq!(tier, ApiKeyTier::Standard);
+    fn key_row(tier: &str) -> serde_json::Result<ApiKeyRow> {
+        serde_json::from_str(&format!(
+            r#"{{"key":"h","user_email":null,"created_at":1,"last_used_at":null,"is_active":1,"tier":"{}"}}"#,
+            tier
+        ))
     }
 
     #[test]
-    fn test_api_key_tier_from_str_premium() {
-        let tier_str = "premium";
-        let tier = ApiKeyTier::from_str(tier_str);
-        assert_eq!(tier, ApiKeyTier::Premium);
+    fn api_key_row_reads_the_known_tiers() {
+        assert_eq!(key_row("standard").unwrap().tier, ApiKeyTier::Standard);
+        assert_eq!(key_row("premium").unwrap().tier, ApiKeyTier::Premium);
     }
 
     #[test]
-    fn test_api_key_tier_from_str_unknown() {
-        let tier_str = "unknown";
-        let tier = ApiKeyTier::from_str(tier_str);
-        assert_eq!(tier, ApiKeyTier::Standard);
-    }
-
-    #[test]
-    fn test_api_key_tier_to_str_standard() {
-        let tier = ApiKeyTier::Standard;
-        assert_eq!(tier.as_str(), "standard");
-    }
-
-    #[test]
-    fn test_api_key_tier_to_str_premium() {
-        let tier = ApiKeyTier::Premium;
-        assert_eq!(tier.as_str(), "premium");
+    fn api_key_row_with_an_unknown_tier_is_an_error() {
+        for tier in ["gold", "Premium", ""] {
+            assert!(key_row(tier).is_err(), "tier {:?} was accepted", tier);
+        }
     }
 }

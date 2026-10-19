@@ -86,7 +86,7 @@ Indexes: `expires_at`, `uploaded_by`, `created_at`, `delete_token`, and `max_dow
 | `created_at` | INTEGER | Unix seconds |
 | `last_used_at` | INTEGER | Updated on each upload with the key |
 | `is_active` | INTEGER | 1 active, 0 revoked |
-| `tier` | TEXT | `standard` or `premium` |
+| `tier` | TEXT | `standard` or `premium`. Any other value is an error: the key lookup fails and the upload returns `500` |
 
 Indexes: `is_active`, `user_email`.
 

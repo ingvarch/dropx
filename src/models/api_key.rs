@@ -31,13 +31,6 @@ impl ApiKeyTier {
             ApiKeyTier::Premium => "premium",
         }
     }
-
-    pub fn from_str(s: &str) -> Self {
-        match s {
-            "premium" => ApiKeyTier::Premium,
-            _ => ApiKeyTier::Standard,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,6 +112,13 @@ mod tests {
         let tier = ApiKeyTier::Premium;
         let json = serde_json::to_string(&tier).unwrap();
         assert_eq!(json, "\"premium\"");
+    }
+
+    #[test]
+    fn as_str_matches_the_serde_name() {
+        for tier in [ApiKeyTier::Standard, ApiKeyTier::Premium] {
+            assert_eq!(serde_json::to_string(&tier).unwrap(), format!("\"{}\"", tier.as_str()));
+        }
     }
 
     #[test]

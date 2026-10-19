@@ -11,6 +11,7 @@ import {
   request,
   runScheduledCleanup,
   setExpiresAt,
+  sha256Hex,
   upload,
   uploadOk,
 } from './helpers.mjs';
@@ -284,6 +285,25 @@ test('an API key raises the size limit to its tier', async () => {
   const file = await uploadOk(Buffer.alloc(size), { headers: { 'X-API-Key': key } });
 
   assert.equal(file.size, size);
+});
+
+test('an API key with an unknown tier fails the upload and stores nothing', async () => {
+  const key = 'unknown-tier-key';
+  const uniqueSize = 7901;
+  await d1Raw(
+    "INSERT INTO api_keys (key, user_email, created_at, is_active, tier) VALUES (?1, 'e2e@example.com', 0, 1, 'Premium')",
+    [sha256Hex(key)],
+  );
+  try {
+    const response = await upload('x'.repeat(uniqueSize), { filename: 'unknown-tier.bin', headers: { 'X-API-Key': key } });
+
+    assert.equal(response.status, 500);
+    const { results } = await d1Raw('SELECT id FROM files WHERE original_filename = ?1', ['unknown-tier.bin']);
+    assert.equal(results.rows.length, 0, 'row left in D1');
+    assert.ok(!(await listR2ObjectSizes()).includes(uniqueSize), 'object left in R2');
+  } finally {
+    await d1Raw('DELETE FROM api_keys WHERE key = ?1', [sha256Hex(key)]);
+  }
 });
 
 test('upload at the anonymous size limit succeeds', async () => {
