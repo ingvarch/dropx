@@ -2,9 +2,8 @@ use worker::*;
 use serde::{Deserialize, Serialize};
 use crate::utils::constants::{
     MILLIS_PER_HOUR, MILLIS_PER_DAY, MILLIS_PER_SECOND,
-    ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
     DO_RATE_LIMITER_PATH_CHECK, DO_RATE_LIMITER_PATH_RESET,
-    HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HEADER_RETRY_AFTER,
+    HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_TOO_MANY_REQUESTS, HEADER_RETRY_AFTER,
 };
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -52,6 +51,15 @@ fn decide_limit(counts: &RateLimitCounts, hourly_limit: u32, daily_limit: u32, n
         })
 }
 
+fn parse_check_limits(url: &Url) -> Option<(u32, u32)> {
+    let query_value = |name: &str| {
+        url.query_pairs()
+            .find(|(key, _)| key == name)
+            .and_then(|(_, value)| value.parse().ok())
+    };
+    Some((query_value("hourly")?, query_value("daily")?))
+}
+
 #[durable_object]
 pub struct RateLimiter {
     state: State,
@@ -64,23 +72,11 @@ impl DurableObject for RateLimiter {
 
     async fn fetch(&self, req: Request) -> Result<Response> {
         let url = req.url()?;
-        let query_pairs: std::collections::HashMap<String, String> = url
-            .query_pairs()
-            .map(|(k, v)| (k.into_owned(), v.into_owned()))
-            .collect();
-
-        let hourly_limit: u32 = query_pairs
-            .get("hourly")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(ANON_HOURLY_LIMIT as u32);
-
-        let daily_limit: u32 = query_pairs
-            .get("daily")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(ANON_DAILY_LIMIT as u32);
-
         match url.path() {
-            path if path == DO_RATE_LIMITER_PATH_CHECK => self.check_limit(hourly_limit, daily_limit).await,
+            path if path == DO_RATE_LIMITER_PATH_CHECK => match parse_check_limits(&url) {
+                Some((hourly_limit, daily_limit)) => self.check_limit(hourly_limit, daily_limit).await,
+                None => Response::error("hourly and daily must be numbers", HTTP_BAD_REQUEST),
+            },
             path if path == DO_RATE_LIMITER_PATH_RESET => self.reset_counters().await,
             _ => Response::error("Not found", HTTP_NOT_FOUND),
         }
@@ -126,6 +122,28 @@ impl RateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn check_url(query: &str) -> Url {
+        Url::parse(&format!("http://rate-limiter/check{}", query)).unwrap()
+    }
+
+    #[test]
+    fn check_limits_are_read_from_the_query() {
+        assert_eq!(parse_check_limits(&check_url("?hourly=7&daily=30")), Some((7, 30)));
+    }
+
+    #[test]
+    fn check_limits_need_both_values() {
+        assert_eq!(parse_check_limits(&check_url("?hourly=7")), None);
+        assert_eq!(parse_check_limits(&check_url("?daily=30")), None);
+        assert_eq!(parse_check_limits(&check_url("")), None);
+    }
+
+    #[test]
+    fn check_limits_must_be_numbers() {
+        assert_eq!(parse_check_limits(&check_url("?hourly=many&daily=30")), None);
+        assert_eq!(parse_check_limits(&check_url("?hourly=7&daily=-1")), None);
+    }
 
     #[test]
     fn windows_reset_when_the_reset_time_is_reached() {

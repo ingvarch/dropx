@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::utils::constants::{
+    ANON_MAX_FILE_SIZE, ANON_RETENTION_DAYS, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
     STANDARD_MAX_FILE_SIZE, PREMIUM_MAX_FILE_SIZE,
     STANDARD_RETENTION_DAYS, PREMIUM_RETENTION_DAYS,
     STANDARD_HOURLY_LIMIT, STANDARD_DAILY_LIMIT,
@@ -24,34 +25,6 @@ pub enum ApiKeyTier {
 }
 
 impl ApiKeyTier {
-    pub fn hourly_limit(&self) -> usize {
-        match self {
-            ApiKeyTier::Standard => STANDARD_HOURLY_LIMIT,
-            ApiKeyTier::Premium => PREMIUM_HOURLY_LIMIT,
-        }
-    }
-
-    pub fn daily_limit(&self) -> usize {
-        match self {
-            ApiKeyTier::Standard => STANDARD_DAILY_LIMIT,
-            ApiKeyTier::Premium => PREMIUM_DAILY_LIMIT,
-        }
-    }
-
-    pub fn max_file_size(&self) -> usize {
-        match self {
-            ApiKeyTier::Standard => STANDARD_MAX_FILE_SIZE,
-            ApiKeyTier::Premium => PREMIUM_MAX_FILE_SIZE,
-        }
-    }
-
-    pub fn retention_days(&self) -> i64 {
-        match self {
-            ApiKeyTier::Standard => STANDARD_RETENTION_DAYS,
-            ApiKeyTier::Premium => PREMIUM_RETENTION_DAYS,
-        }
-    }
-
     pub fn as_str(&self) -> &str {
         match self {
             ApiKeyTier::Standard => "standard",
@@ -71,6 +44,40 @@ impl ApiKeyTier {
 pub struct CreateApiKeyRequest {
     pub email: String,
     pub tier: ApiKeyTier,
+}
+
+#[derive(Debug)]
+pub struct Limits {
+    pub hourly: usize,
+    pub daily: usize,
+    pub max_file_size: usize,
+    pub retention_days: i64,
+}
+
+impl Limits {
+    /// `None` is an anonymous upload.
+    pub fn for_tier(tier: Option<ApiKeyTier>) -> Self {
+        match tier {
+            None => Self {
+                hourly: ANON_HOURLY_LIMIT,
+                daily: ANON_DAILY_LIMIT,
+                max_file_size: ANON_MAX_FILE_SIZE,
+                retention_days: ANON_RETENTION_DAYS,
+            },
+            Some(ApiKeyTier::Standard) => Self {
+                hourly: STANDARD_HOURLY_LIMIT,
+                daily: STANDARD_DAILY_LIMIT,
+                max_file_size: STANDARD_MAX_FILE_SIZE,
+                retention_days: STANDARD_RETENTION_DAYS,
+            },
+            Some(ApiKeyTier::Premium) => Self {
+                hourly: PREMIUM_HOURLY_LIMIT,
+                daily: PREMIUM_DAILY_LIMIT,
+                max_file_size: PREMIUM_MAX_FILE_SIZE,
+                retention_days: PREMIUM_RETENTION_DAYS,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -121,24 +128,6 @@ mod tests {
 
         let tier: ApiKeyTier = serde_json::from_str("\"premium\"").unwrap();
         assert_eq!(tier, ApiKeyTier::Premium);
-    }
-
-    #[test]
-    fn standard_tier_uses_the_standard_constants() {
-        let tier = ApiKeyTier::Standard;
-        assert_eq!(tier.max_file_size(), STANDARD_MAX_FILE_SIZE);
-        assert_eq!(tier.retention_days(), STANDARD_RETENTION_DAYS);
-        assert_eq!(tier.hourly_limit(), STANDARD_HOURLY_LIMIT);
-        assert_eq!(tier.daily_limit(), STANDARD_DAILY_LIMIT);
-    }
-
-    #[test]
-    fn premium_tier_uses_the_premium_constants() {
-        let tier = ApiKeyTier::Premium;
-        assert_eq!(tier.max_file_size(), PREMIUM_MAX_FILE_SIZE);
-        assert_eq!(tier.retention_days(), PREMIUM_RETENTION_DAYS);
-        assert_eq!(tier.hourly_limit(), PREMIUM_HOURLY_LIMIT);
-        assert_eq!(tier.daily_limit(), PREMIUM_DAILY_LIMIT);
     }
 
     #[test]

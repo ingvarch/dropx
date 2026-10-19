@@ -92,7 +92,7 @@ Indexes: `is_active`, `user_email`.
 
 ## Rate limiter
 
-One Durable Object per client, named by the client identity (the SHA-256 of the API key, or the IP HMAC). It stores the hourly and daily counters and the time each window resets. The Worker calls it with the limits for the client's tier. Windows and `429` behavior are in [limits.md](limits.md#rate-limits).
+One Durable Object per client, named by the client identity (the SHA-256 of the API key, or the IP HMAC). It stores the hourly and daily counters and the time each window resets. The Worker calls it with the limits for the client's tier (or the anonymous limits). A check without numeric `hourly` and `daily` values returns `400`, and the upload fails with `500`. Windows and `429` behavior are in [limits.md](limits.md#rate-limits).
 
 ## Cleanup job
 

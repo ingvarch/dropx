@@ -1,9 +1,8 @@
 use worker::{console_log, Request, Response, RouteContext, Result};
-use crate::models::{FileMetadata, UploadResponse, FileSizeError};
+use crate::models::{Limits, FileMetadata, UploadResponse, FileSizeError};
 use crate::services::{StorageService, DatabaseService, RateLimiterService, RateLimitCheck};
 use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, client_id, hash_secret, current_timestamp, origin_for_host};
 use crate::utils::constants::{
-    ANON_RETENTION_DAYS, ANON_MAX_FILE_SIZE,
     SECONDS_PER_DAY, BYTES_PER_MB,
     HEADER_API_KEY, HEADER_HOST, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
     HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE,
@@ -77,20 +76,18 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         (client_id(&env, &ip)?, None)
     };
 
-    let default_retention_days = tier
-        .map(|t| t.retention_days())
-        .unwrap_or(ANON_RETENTION_DAYS);
+    let limits = Limits::for_tier(tier);
     let UploadOptions { retention_days, max_downloads } = match UploadOptions::parse(
         req.headers().get(HEADER_MAX_AGE_DAYS)?.as_deref(),
         req.headers().get(HEADER_MAX_DOWNLOADS)?.as_deref(),
-        default_retention_days,
+        limits.retention_days,
     ) {
         Ok(options) => options,
         Err(message) => return bad_request(ERR_INVALID_RETENTION, &message),
     };
 
     if let RateLimitCheck::Limited { retry_after, message } =
-        RateLimiterService::check_limit(&env, &user_id, tier).await?
+        RateLimiterService::check_limit(&env, &user_id, &limits).await?
     {
         let mut response = error_response(ERR_RATE_LIMIT_EXCEEDED, &message, HTTP_TOO_MANY_REQUESTS)?;
         response.headers_mut().set(HEADER_RETRY_AFTER, &retry_after.to_string())?;
@@ -100,9 +97,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let body = req.bytes().await?;
     let size = body.len();
 
-    let max_size = tier
-        .map(|t| t.max_file_size())
-        .unwrap_or(ANON_MAX_FILE_SIZE);
+    let max_size = limits.max_file_size;
 
     if size > max_size {
         return Ok(Response::from_json(&FileSizeError {

@@ -1,7 +1,7 @@
 use worker::{Env, Result};
-use crate::models::api_key::ApiKeyTier;
+use crate::models::Limits;
 use crate::utils::constants::{
-    RATE_LIMITER_NAME, ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT,
+    RATE_LIMITER_NAME,
     DO_RATE_LIMITER_BASE_URL, DO_RATE_LIMITER_PATH_CHECK, DO_RATE_LIMITER_PATH_RESET,
     HTTP_TOO_MANY_REQUESTS, HTTP_OK, HEADER_RETRY_AFTER,
 };
@@ -41,14 +41,9 @@ impl RateLimiterService {
     pub async fn check_limit(
         env: &Env,
         user_id: &str,
-        tier: Option<ApiKeyTier>,
+        limits: &Limits,
     ) -> Result<RateLimitCheck> {
-        let (hourly_limit, daily_limit) = match tier {
-            Some(t) => (t.hourly_limit(), t.daily_limit()),
-            None => (ANON_HOURLY_LIMIT, ANON_DAILY_LIMIT),
-        };
-
-        let url = Self::build_check_url(hourly_limit, daily_limit);
+        let url = Self::build_check_url(limits.hourly, limits.daily);
         let mut response = Self::fetch_from_do(env, user_id, &url).await?;
 
         let retry_after = response.headers().get(HEADER_RETRY_AFTER)?;
@@ -125,5 +120,6 @@ mod tests {
     #[test]
     fn parse_check_response_other_status_is_error() {
         assert!(RateLimiterService::parse_check_response(500, Some("5"), "x").is_err());
+        assert!(RateLimiterService::parse_check_response(400, None, "x").is_err());
     }
 }

@@ -1,6 +1,6 @@
 use worker::{Request, Response, RouteContext, Result};
 use crate::models::{
-    CreateApiKeyRequest, ApiKeyResponse, ApiKeyLimits, RevokeApiKeyResponse, ResetRateLimitResponse,
+    CreateApiKeyRequest, ApiKeyResponse, Limits, ApiKeyLimits, RevokeApiKeyResponse, ResetRateLimitResponse,
 };
 use crate::services::{DatabaseService, RateLimiterService};
 use crate::utils::auth::{generate_api_key, hash_secret};
@@ -33,13 +33,14 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
     )
     .await?;
 
+    let limits = Limits::for_tier(Some(request_body.tier));
     let response = ApiKeyResponse {
         key,
         tier: request_body.tier,
         created_at: now,
         limits: ApiKeyLimits {
-            hourly: request_body.tier.hourly_limit(),
-            daily: request_body.tier.daily_limit(),
+            hourly: limits.hourly,
+            daily: limits.daily,
         },
     };
 
