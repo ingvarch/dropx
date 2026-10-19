@@ -89,6 +89,37 @@ bunx wrangler d1 migrations list dropx-db --remote
 
 `wrangler.toml` has `workers_dev = true`, so the Worker is served on a `workers.dev` address. A custom domain is not configured in `wrangler.toml`.
 
+## Release
+
+```bash
+bun run release
+```
+
+Run it from a clean `main` that matches `origin/main`. It stops with a message otherwise, and when the tag already exists locally or on `origin`. It shows the current version from `Cargo.toml` and asks for the bump: patch, minor or major, each with the resulting version. Answer `p`, `m`, `M` or the full word. Then it writes the version to `Cargo.toml` and `Cargo.lock`, commits `chore(build): release vX.Y.Z` and creates the annotated tag `vX.Y.Z`. At the end it asks `Push to origin? [y/N]`. Yes runs `git push --atomic origin main vX.Y.Z`. Anything else prints that command and the undo commands.
+
+Pushing a tag `v*.*.*` starts `.github/workflows/release.yml`. It runs two jobs at the same time:
+
+- the checks from `ci.yml`;
+- a check that the tag matches the version in `Cargo.toml` and that the tagged commit is on `main`.
+
+When both pass, it creates a GitHub Release with notes generated from the merged pull requests, grouped by their labels (`.github/release.yml`).
+
+The release does not deploy. Deploy the released version with `bun run deploy` afterwards.
+
+To undo a release that is not pushed:
+
+```bash
+git tag -d vX.Y.Z
+git reset --hard HEAD~1
+```
+
+If the workflow fails after the push, no GitHub Release is created. Rerun the failed jobs in the Actions tab when a check failed by chance. For a real failure, fix it and release the next version. A tag pushed by hand that does not match `Cargo.toml` or is not on `main` can be deleted:
+
+```bash
+git push origin :refs/tags/vX.Y.Z
+git tag -d vX.Y.Z
+```
+
 ## Logs
 
 ```bash
