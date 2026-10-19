@@ -3,8 +3,8 @@ updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: cron
+      cronjob: '0 6 * * *'
     labels: [dependencies, build]
     commit-message:
       prefix: chore(build)
@@ -15,8 +15,8 @@ updates:
   - package-ecosystem: bun
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: cron
+      cronjob: '0 6 * * *'
     labels: [dependencies, build]
     commit-message:
       prefix: chore(build)
@@ -27,8 +27,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: cron
+      cronjob: '0 6 * * *'
     labels: [dependencies, ci]
     commit-message:
       prefix: chore(ci)
