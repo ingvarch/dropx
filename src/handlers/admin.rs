@@ -6,7 +6,7 @@ use crate::services::{DatabaseService, RateLimiterService};
 use crate::utils::auth::{generate_api_key, hash_secret};
 use crate::utils::response::{bad_request, get_required_param};
 use crate::utils::current_timestamp;
-use crate::utils::constants::HTTP_CREATED;
+use crate::utils::constants::{HTTP_CREATED, ERR_NOT_FOUND};
 use crate::require_admin;
 
 pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -61,7 +61,7 @@ pub async fn handle_revoke_key(req: Request, ctx: RouteContext<()>) -> Result<Re
         })
     } else {
         use crate::utils::response::not_found;
-        not_found("NotFound", "The specified API key does not exist")
+        not_found(ERR_NOT_FOUND, "The specified API key does not exist")
     }
 }
 

@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use worker::{Request, Env, Result, Response};
 use crate::utils::response::unauthorized;
-use crate::utils::constants::{ENV_IP_HASH_KEY, HASH_TRUNCATE_BYTES, HEADER_ADMIN_TOKEN};
+use crate::utils::constants::{ENV_IP_HASH_KEY, HASH_TRUNCATE_BYTES, HEADER_ADMIN_TOKEN, ERR_UNAUTHORIZED};
 
 pub fn hash_secret(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
@@ -43,7 +43,7 @@ pub fn verify_admin_token(req: &Request, env: &Env) -> Result<bool> {
 pub fn require_admin_token(req: &Request, env: &Env) -> Option<Result<Response>> {
     match verify_admin_token(req, env) {
         Ok(true) => None,
-        Ok(false) => Some(unauthorized("Unauthorized", "Invalid or missing admin token")),
+        Ok(false) => Some(unauthorized(ERR_UNAUTHORIZED, "Invalid or missing admin token")),
         Err(e) => Some(Err(e)),
     }
 }
