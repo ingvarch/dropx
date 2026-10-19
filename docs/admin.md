@@ -88,6 +88,6 @@ curl -X POST https://dropx.click/admin/rate-limit/reset/<user_id> \
 `user_id` is the identity the limiter counts, see [limits.md](limits.md#rate-limits):
 
 - For an API key client: the SHA-256 of the key, 64 hex characters, for example `printf %s "$KEY" | shasum -a 256`. It is the `key` column of `api_keys` and the `uploaded_by` column of the client's files.
-- For an anonymous client: the HMAC of the IP address (HMAC-SHA-256 with `IP_HASH_KEY`, first 16 bytes, as 32 hex characters). It is stored in the `uploaded_by` column of that client's files, so it can be read from the database.
+- For an anonymous client: the HMAC of the IPv4 address, or of the IPv6 /64 prefix in the short form of RFC 5952 (lower case, no leading zeros in a group, the longest run of zero groups written as `::`), for example `2001:db8:5:0:1:2:3:4` becomes `2001:db8:5::/64` (HMAC-SHA-256 with `IP_HASH_KEY`, first 16 bytes, as 32 hex characters). It is stored in the `uploaded_by` column of that client's files, so it can be read from the database.
 
 Response, status `200`: `{"message": "Rate limit reset successfully", "user_id": "..."}`.
