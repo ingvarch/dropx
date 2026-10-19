@@ -48,7 +48,7 @@ Without `Content-Length` (a chunked upload, for example `cat file | curl -T - ..
 { "error": "Length required", "message": "Send a Content-Length header for files over 25 MB" }
 ```
 
-`curl --upload-file ./file` sends `Content-Length` by itself, so only streamed input is affected.
+`curl --upload-file ./file` sends `Content-Length` by itself, so only streamed input is affected. Streamed input includes a pipe from an encryption tool such as `gpg` or `age`. To upload a file over 25 MB, encrypt it to a file first, then upload that file.
 
 Cloudflare also limits the request body size by the zone plan: 100 MB on Free and Pro, 200 MB on Business, more on Enterprise. Larger requests are rejected by Cloudflare with its own HTML `413` page before they reach the Worker. dropx.click is on the Pro plan; measured on production, a body of 104,857,600 bytes (100 MB as the tiers count it) reaches the Worker and one more byte does not. The standard and premium limits are set to exactly that size, so a file within a tier limit always gets past Cloudflare. A body over it gets Cloudflare's HTML `413` on every tier, not the Worker's own `413`. A larger premium limit needs the Business or Enterprise plan. See [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [deployment.md](deployment.md#cloudflare-limits-and-pricing).
 

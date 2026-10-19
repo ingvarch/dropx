@@ -272,7 +272,7 @@
                 <details class="accordion-item">
                     <summary>
                         <div class="accordion-title">Security & Encryption</div>
-                        <div class="accordion-description">Client-side encryption with GPG and OpenSSL</div>
+                        <div class="accordion-description">Client-side encryption with GPG and age</div>
                     </summary>
                     <div class="accordion-content">
                         <div class="example-item">
@@ -291,17 +291,32 @@
                         </div>
 
                         <div class="example-item">
-                            <div class="example-title">OpenSSL encryption</div>
-                            <div class="example-desc">AES-256 encryption with password</div>
+                            <div class="example-title">age encryption</div>
+                            <div class="example-desc">Also checks that the file was not changed. Install age first: brew install age or apt install age</div>
                             <div class="code-block">
                                 <div class="code-block-header">
                                     <span class="code-block-label">COMMAND</span>
-                                    <button class="copy-btn" data-copy-text="openssl aes-256-cbc -pbkdf2 -e < myfile.txt | curl -T - {{HOSTNAME}}/myfile.enc" aria-label="Copy">
+                                    <button class="copy-btn" data-copy-text="# Encrypt and upload&#10;age -p myfile.txt | curl -T - {{HOSTNAME}}/myfile.txt.age&#10;&#10;# Download and decrypt&#10;curl {{HOSTNAME}}/abc123 | age -d &gt; myfile.txt" aria-label="Copy">
                                         <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                                         <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                     </button>
                                 </div>
-                                <code><span class="comment"># Encrypt and upload</span><br>openssl aes-256-cbc -pbkdf2 -e < myfile.txt | curl -T - {{HOSTNAME}}/myfile.enc<br><br><span class="comment"># Download and decrypt</span><br>curl {{HOSTNAME}}/abc123 | openssl aes-256-cbc -pbkdf2 -d > myfile.txt</code>
+                                <code><span class="comment"># Encrypt and upload</span><br>age -p myfile.txt | curl -T - {{HOSTNAME}}/myfile.txt.age<br><br><span class="comment"># Download and decrypt</span><br>curl {{HOSTNAME}}/abc123 | age -d &gt; myfile.txt</code>
+                            </div>
+                        </div>
+
+                        <div class="example-item">
+                            <div class="example-title">Files over 25 MB</div>
+                            <div class="example-desc">An upload from a pipe has no Content-Length, so it is limited to 25 MB. For a bigger file, which needs an API key, encrypt to a file first, then upload the file</div>
+                            <div class="code-block">
+                                <div class="code-block-header">
+                                    <span class="code-block-label">COMMAND</span>
+                                    <button class="copy-btn" data-copy-text="# Encrypt to a file, then upload it&#10;gpg --symmetric --output myfile.txt.gpg myfile.txt&#10;curl -T myfile.txt.gpg -H &quot;X-API-Key: tfr_xxxxx&quot; {{HOSTNAME}}/" aria-label="Copy">
+                                        <svg class="copy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                        <svg class="check-icon" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    </button>
+                                </div>
+                                <code><span class="comment"># Encrypt to a file, then upload it</span><br>gpg --symmetric --output myfile.txt.gpg myfile.txt<br>curl -T myfile.txt.gpg -H "X-API-Key: tfr_xxxxx" {{HOSTNAME}}/</code>
                             </div>
                         </div>
 
