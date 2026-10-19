@@ -52,11 +52,6 @@ impl From<FileRow> for FileMetadata {
 
 #[derive(Deserialize)]
 struct ApiKeyRow {
-    #[serde(rename = "key")]
-    key_hash: String,
-    user_email: Option<String>,
-    created_at: i64,
-    last_used_at: Option<i64>,
     is_active: i64,
     tier: ApiKeyTier,
 }
@@ -156,7 +151,7 @@ impl DatabaseService {
     pub async fn insert_api_key(
         env: &worker::Env,
         key_hash: &str,
-        email: Option<&str>,
+        email: &str,
         tier: ApiKeyTier,
         created_at: i64,
     ) -> Result<()> {
@@ -168,7 +163,7 @@ impl DatabaseService {
 
         statement.bind(&[
             key_hash.into(),
-            email.map(|e| e.into()).unwrap_or_else(|| worker::wasm_bindgen::JsValue::NULL),
+            email.into(),
             (created_at as f64).into(),
             (DB_BOOL_TRUE as f64).into(),
             tier.as_str().into(),
@@ -179,16 +174,12 @@ impl DatabaseService {
 
     pub async fn get_api_key(env: &worker::Env, key_hash: &str) -> Result<Option<ApiKey>> {
         let d1 = Self::get_db(env)?;
-        let statement = d1.prepare("SELECT * FROM api_keys WHERE key = ?1");
+        let statement = d1.prepare("SELECT is_active, tier FROM api_keys WHERE key = ?1");
         let query = statement.bind(&[key_hash.into()])?;
 
         match query.first::<ApiKeyRow>(None).await? {
             Some(row) => {
                 Ok(Some(ApiKey {
-                    key_hash: row.key_hash,
-                    user_email: row.user_email,
-                    created_at: row.created_at,
-                    last_used_at: row.last_used_at,
                     is_active: row.is_active == DB_BOOL_TRUE,
                     tier: row.tier,
                 }))
@@ -341,7 +332,7 @@ mod tests {
 
     fn key_row(tier: &str) -> serde_json::Result<ApiKeyRow> {
         serde_json::from_str(&format!(
-            r#"{{"key":"h","user_email":null,"created_at":1,"last_used_at":null,"is_active":1,"tier":"{}"}}"#,
+            r#"{{"is_active":1,"tier":"{}"}}"#,
             tier
         ))
     }

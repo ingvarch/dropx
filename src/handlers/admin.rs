@@ -27,7 +27,7 @@ pub async fn handle_create_key(mut req: Request, ctx: RouteContext<()>) -> Resul
     DatabaseService::insert_api_key(
         &env,
         &hash_secret(&key),
-        Some(&request_body.email),
+        &request_body.email,
         request_body.tier,
         now,
     )
