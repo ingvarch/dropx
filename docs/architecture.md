@@ -21,7 +21,7 @@ Code layout is in [development.md](development.md#project-structure). The router
 5. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
 6. Write the body to R2. With a valid `Content-Length`, the request stream goes to R2 without entering Worker memory. Without it, the Worker reads the body chunk by chunk and stops when the limit is passed: `413` over the tier limit, `411` over 25 MB when the tier allows more. R2 reports the stored size.
 7. Read the first bytes back from R2 and detect the MIME type from them, then from the file name. An empty file skips the read. If the read fails, delete the object just written and return the error (`500`).
-8. Compute `expires_at`, insert the metadata row into D1 and return the JSON response. If the insert fails, delete the object it just wrote to R2 and return the insert error (`500`). A failed delete is logged and does not replace that error.
+8. Compute `expires_at`, insert the metadata row into D1 and return the download URL as plain text, or the JSON response when `Accept` contains `application/json`. The `400`, `401`, `411`, `413` and `429` answers follow the same rule; a `500` does not. If the insert fails, delete the object it just wrote to R2 and return the insert error (`500`). A failed delete is logged and does not replace that error.
 
 A request rejected in steps 2 to 4, or in step 6 by the size check, stores no file: nothing is written to R2 and no row is added to `files`.
 

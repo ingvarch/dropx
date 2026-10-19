@@ -43,6 +43,9 @@ pub const HTTP_LENGTH_REQUIRED: u16 = 411;
 pub const HTTP_PAYLOAD_TOO_LARGE: u16 = 413;
 pub const HTTP_TOO_MANY_REQUESTS: u16 = 429;
 
+pub const HEADER_ACCEPT: &str = "Accept";
+pub const HEADER_VARY: &str = "Vary";
+pub const HEADER_URL_DELETE: &str = "X-Url-Delete";
 pub const HEADER_API_KEY: &str = "X-API-Key";
 pub const HEADER_ADMIN_TOKEN: &str = "X-Admin-Token";
 pub const HEADER_CF_CONNECTING_IP: &str = "CF-Connecting-IP";
@@ -57,6 +60,7 @@ pub const HEADER_CONTENT_TYPE_OPTIONS: &str = "X-Content-Type-Options";
 pub const HEADER_MAX_DOWNLOADS: &str = "Max-Downloads";
 pub const HEADER_MAX_AGE_DAYS: &str = "Max-Age-Days";
 
+pub const MIME_JSON: &str = "application/json";
 pub const CONTENT_TYPE_OPTIONS_NOSNIFF: &str = "nosniff";
 pub const INLINE_ACTIVE_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
 

@@ -5,12 +5,13 @@ use crate::services::{StorageService, DatabaseService, RateLimiterService, RateL
 use crate::utils::{generate_file_id, generate_delete_token, detect_mime_type, client_id, hash_secret, current_timestamp, origin_for_host};
 use crate::utils::constants::{
     SECONDS_PER_DAY, BYTES_PER_MB,
-    HEADER_API_KEY, HEADER_CONTENT_LENGTH, HEADER_HOST, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS,
-    HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE, HTTP_LENGTH_REQUIRED,
+    HEADER_ACCEPT, HEADER_API_KEY, HEADER_CONTENT_LENGTH, HEADER_HOST, HEADER_RETRY_AFTER, HEADER_CF_CONNECTING_IP, HEADER_MAX_DOWNLOADS, HEADER_MAX_AGE_DAYS, HEADER_URL_DELETE,
+    HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED, HTTP_TOO_MANY_REQUESTS, HTTP_PAYLOAD_TOO_LARGE, HTTP_LENGTH_REQUIRED,
     ERR_RATE_LIMIT_EXCEEDED, ERR_INVALID_API_KEY, ERR_FILE_TOO_LARGE, ERR_LENGTH_REQUIRED, ERR_INVALID_RETENTION, MIME_SNIFF_BYTES, MAX_BUFFERED_UPLOAD_SIZE,
     UNKNOWN_IP_ADDRESS, DEFAULT_FILENAME,
 };
-use crate::utils::response::{bad_request, error_response, unauthorized};
+use crate::utils::content_negotiation::ResponseFormat;
+use crate::utils::response::{negotiated_error_response, negotiated_error_with_body, with_vary_accept};
 use crate::utils::upload_body::{body_plan, buffer_overflow, BodyPlan, BodyRejection};
 
 #[derive(Debug, PartialEq)]
@@ -53,19 +54,17 @@ fn filename_from_path(path: &str) -> String {
     }
 }
 
-fn too_large(max_size: usize) -> Result<Response> {
-    Ok(Response::from_json(&FileSizeError {
-        error: ERR_FILE_TOO_LARGE.to_string(),
-        message: format!("Maximum file size is {} MB", max_size / BYTES_PER_MB),
-        max_size,
-    })?
-    .with_status(HTTP_PAYLOAD_TOO_LARGE))
+fn too_large(format: ResponseFormat, max_size: usize) -> Result<Response> {
+    let message = format!("Maximum file size is {} MB", max_size / BYTES_PER_MB);
+    let body = FileSizeError { error: ERR_FILE_TOO_LARGE.to_string(), message: message.clone(), max_size };
+    negotiated_error_with_body(format, &body, &message, HTTP_PAYLOAD_TOO_LARGE)
 }
 
-fn rejection_response(rejection: BodyRejection, max_size: usize) -> Result<Response> {
+fn rejection_response(format: ResponseFormat, rejection: BodyRejection, max_size: usize) -> Result<Response> {
     match rejection {
-        BodyRejection::TooLarge => too_large(max_size),
-        BodyRejection::LengthRequired => error_response(
+        BodyRejection::TooLarge => too_large(format, max_size),
+        BodyRejection::LengthRequired => negotiated_error_response(
+            format,
             ERR_LENGTH_REQUIRED,
             &format!(
                 "Send a Content-Length header for files over {} MB",
@@ -113,6 +112,7 @@ async fn store_body(req: &mut Request, plan: BodyPlan, max_size: usize, bucket: 
 
 pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let env = ctx.env;
+    let format = ResponseFormat::from_accept(req.headers().get(HEADER_ACCEPT)?.as_deref());
 
     let api_key = req.headers().get(HEADER_API_KEY)?;
 
@@ -125,7 +125,12 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
                 (key_hash, Some(api_key_data.tier))
             }
             _ => {
-                return unauthorized(ERR_INVALID_API_KEY, "The provided API key is invalid or inactive");
+                return negotiated_error_response(
+                    format,
+                    ERR_INVALID_API_KEY,
+                    "The provided API key is invalid or inactive",
+                    HTTP_UNAUTHORIZED,
+                );
             }
         }
     } else {
@@ -143,19 +148,19 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         limits.retention_days,
     ) {
         Ok(options) => options,
-        Err(message) => return bad_request(ERR_INVALID_RETENTION, &message),
+        Err(message) => return negotiated_error_response(format, ERR_INVALID_RETENTION, &message, HTTP_BAD_REQUEST),
     };
 
     let max_size = limits.max_file_size;
     let plan = match body_plan(req.headers().get(HEADER_CONTENT_LENGTH)?.as_deref(), max_size) {
         Ok(plan) => plan,
-        Err(rejection) => return rejection_response(rejection, max_size),
+        Err(rejection) => return rejection_response(format, rejection, max_size),
     };
 
     if let RateLimitCheck::Limited { retry_after, message } =
         RateLimiterService::check_limit(&env, &user_id, &limits).await?
     {
-        let mut response = error_response(ERR_RATE_LIMIT_EXCEEDED, &message, HTTP_TOO_MANY_REQUESTS)?;
+        let mut response = negotiated_error_response(format, ERR_RATE_LIMIT_EXCEEDED, &message, HTTP_TOO_MANY_REQUESTS)?;
         response.headers_mut().set(HEADER_RETRY_AFTER, &retry_after.to_string())?;
         return Ok(response);
     }
@@ -167,7 +172,7 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let bucket = StorageService::get_bucket(&env)?;
     let size = match store_body(&mut req, plan, max_size, &bucket, &file_id).await? {
         Stored::Size(size) => size as usize,
-        Stored::Rejected(rejection) => return rejection_response(rejection, max_size),
+        Stored::Rejected(rejection) => return rejection_response(format, rejection, max_size),
     };
 
     let head = if size == 0 {
@@ -209,8 +214,8 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
     let url = format!("{}/{}", origin, file_id);
     let delete_url = format!("{}/{}/{}", origin, file_id, delete_token);
 
-    let response = UploadResponse {
-        url,
+    let body = UploadResponse {
+        url: url.clone(),
         id: file_id,
         filename,
         size,
@@ -220,9 +225,13 @@ pub async fn handle_upload(mut req: Request, ctx: RouteContext<()>) -> Result<Re
         delete_url: delete_url.clone(),
     };
 
-    let mut resp = Response::from_json(&response)?;
-    resp.headers_mut().set("X-Url-Delete", &delete_url)?;
-    Ok(resp)
+    let response = match format {
+        ResponseFormat::Json => Response::from_json(&body)?,
+        ResponseFormat::Text => Response::ok(format!("{url}\n"))?,
+    };
+    let mut response = with_vary_accept(response)?;
+    response.headers_mut().set(HEADER_URL_DELETE, &delete_url)?;
+    Ok(response)
 }
 
 #[cfg(test)]
