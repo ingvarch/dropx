@@ -8,7 +8,7 @@ Examples use `https://dropx.click`. Timestamps (`created_at`, `expires_at`, `X-E
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/` | Landing page (browsers) or a one-line text (other clients) |
+| GET, HEAD | `/` | Landing page (browsers) or a one-line text (other clients) |
 | POST | `/` | Upload, file name is `file` |
 | PUT | `/:filename` | Upload with a file name |
 | GET | `/:id` | Download, shown in the browser when the type allows it |
@@ -133,7 +133,7 @@ Delete also works on a file past `expires_at` that the cleanup job has not remov
 
 ## Landing page
 
-`GET /` returns the HTML page when the `Accept` header contains `text/html`. Other clients get the text `DropX - File Transfer Service`. The response has `Vary: Accept`.
+`GET /` returns the HTML page when the `Accept` header contains `text/html`. Other clients get the text `DropX - File Transfer Service`. The response has `Vary: Accept`. `HEAD /` returns the same status and headers without a body, so uptime checks such as the README badge work.
 
 ## Error format
 

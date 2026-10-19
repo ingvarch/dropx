@@ -16,6 +16,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
     router
         .get_async("/", handlers::handle_landing)
+        .head_async("/", handlers::handle_landing)
         .post_async("/", handlers::handle_upload)
         .put_async("/:filename", handlers::handle_upload)
         .get_async("/get/:id", handlers::handle_get)
