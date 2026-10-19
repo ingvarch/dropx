@@ -10,3 +10,5 @@ build
 *~
 .idea/
 dist
+.impeccable/config.local.json
+.impeccable/hook.cache.json
