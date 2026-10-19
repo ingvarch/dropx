@@ -35,7 +35,7 @@ curl --upload-file ./big.zip -H "X-API-Key: tfr_xxxxx" https://dropx.click/big.z
 | `Max-Downloads` | no | Stop serving the file after this many downloads. The cleanup job deletes it within an hour. Must be a positive integer; any other value is ignored. |
 | `Max-Age-Days` | no | Keep the file this many days instead of the tier default. Rules in [limits.md](limits.md#retention). |
 
-The `Content-Type` of the request is ignored. The type is detected from the first bytes of the file (PDF, JPEG, PNG, GIF, ZIP, RAR, gzip, XML, JSON) and then from the file name extension. Unknown files get `application/octet-stream`.
+The `Content-Type` of the request is ignored. The type is detected from the first bytes stored in R2 (PDF, JPEG, PNG, GIF, ZIP, RAR, gzip, XML, JSON) and then from the file name extension. Unknown files get `application/octet-stream`.
 
 ### Response
 
@@ -62,7 +62,8 @@ The delete URL is also sent in the `X-Url-Delete` response header. The upload re
 |--------|-------|------|
 | 400 | `Max-Age-Days` is 0 or negative, or above the tier maximum | JSON, `error` is `Invalid retention period` |
 | 401 | `X-API-Key` is unknown or revoked | JSON, `error` is `Invalid API key` |
-| 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes |
+| 411 | No `Content-Length` and the body is over 25 MB, for a tier that allows more | JSON, `error` is `Length required`. Send `Content-Length`, see [limits.md](limits.md#file-size) |
+| 413 | File is larger than the tier allows | JSON, `error` is `File too large`, with `max_size` in bytes. Checked from `Content-Length` before the rate limit when the header is present |
 | 429 | Hourly or daily upload limit reached | JSON, `error` is `Rate limit exceeded`, `message` names the window (`Hourly rate limit exceeded` or `Daily rate limit exceeded`). The `Retry-After` header holds the seconds until the window resets |
 
 ## Download

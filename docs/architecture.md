@@ -16,14 +16,14 @@ Code layout is in [development.md](development.md#project-structure). The router
 
 1. If `X-API-Key` is present, hash it with SHA-256 and look the hash up in D1. An unknown or revoked key returns `401`. Otherwise the client is identified by an HMAC of the IPv4 address in `CF-Connecting-IP`, or of its IPv6 /64 prefix.
 2. Check `Max-Age-Days` against the tier default and parse `Max-Downloads`. An invalid retention returns `400`.
-3. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
-4. Read the whole body into memory and check the size against the tier. Too large returns `413`.
+3. Check `Content-Length`. A valid value over the tier limit returns `413`. A missing or invalid value means the body is buffered later, with a limit of 25 MB or the tier limit if that is smaller.
+4. Ask the client's `RateLimiter` Durable Object to count the upload. Over the limit returns `429`. A rate limiter failure returns `500`.
 5. Generate the file ID and the delete token ([IDs](#ids-and-tokens)).
-6. Detect the MIME type from the first bytes, then from the file name.
-7. Write the body to R2.
+6. Write the body to R2. With a valid `Content-Length`, the request stream goes to R2 without entering Worker memory. Without it, the Worker reads the body chunk by chunk and stops when the limit is passed: `413` over the tier limit, `411` over 25 MB when the tier allows more. R2 reports the stored size.
+7. Read the first bytes back from R2 and detect the MIME type from them, then from the file name. An empty file skips the read. If the read fails, delete the object just written and return the error (`500`).
 8. Compute `expires_at`, insert the metadata row into D1 and return the JSON response. If the insert fails, delete the object it just wrote to R2 and return the insert error (`500`). A failed delete is logged and does not replace that error.
 
-A request that fails in steps 2 to 4 stores no file: nothing is written to R2 and no row is added to `files`.
+A request rejected in steps 2 to 4, or in step 6 by the size check, stores no file: nothing is written to R2 and no row is added to `files`.
 
 ## Download flow
 

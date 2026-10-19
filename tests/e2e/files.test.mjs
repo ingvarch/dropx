@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { test } from 'bun:test';
 import {
   BASE_URL,
@@ -6,6 +7,7 @@ import {
   d1Raw,
   fileRowExists,
   listR2ObjectSizes,
+  newClientIp,
   pathOf,
   renameExpiredFile,
   request,
@@ -388,3 +390,106 @@ test('a large download returns the uploaded bytes and the Content-Length', async
   assert.equal(received.length, size);
   assert.equal(sha256Hex(received), sha256Hex(body));
 });
+
+const CHUNK_SIZE = 1024 * 1024;
+
+// A body without Content-Length: bun sends a ReadableStream as chunked.
+function chunkedBody(buffer) {
+  let offset = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (offset >= buffer.length) return controller.close();
+      controller.enqueue(buffer.subarray(offset, offset + CHUNK_SIZE));
+      offset += CHUNK_SIZE;
+    },
+  });
+}
+
+function uploadChunked(buffer, options = {}) {
+  return upload(chunkedBody(buffer), { duplex: 'half', ...options });
+}
+
+test('a chunked upload of a small file is stored and downloads as the same bytes', async () => {
+  const bytes = randomBytes(300_000);
+
+  const file = await (async () => {
+    const response = await uploadChunked(bytes);
+    assert.equal(response.status, 200, await response.clone().text());
+    return response.json();
+  })();
+
+  assert.equal(file.size, bytes.length);
+  const downloaded = Buffer.from(await (await request(file.url)).arrayBuffer());
+  assert.equal(sha256Hex(downloaded), sha256Hex(bytes));
+});
+
+test('a chunked anonymous upload over the size limit returns 413 and stores nothing', async () => {
+  const size = ANON_MAX_FILE_SIZE + 3;
+
+  const response = await uploadChunked(Buffer.alloc(size));
+
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error, 'File too large');
+  assert.ok(!(await listR2ObjectSizes()).includes(size), 'object left in R2');
+});
+
+test('a chunked upload over 25 MB with an API key returns 411 and stores nothing', async () => {
+  const key = await createApiKey('standard');
+  const size = ANON_MAX_FILE_SIZE + 5;
+
+  const response = await uploadChunked(Buffer.alloc(size), { headers: { 'X-API-Key': key } });
+
+  assert.equal(response.status, 411);
+  const body = await response.json();
+  assert.equal(body.error, 'Length required');
+  assert.match(body.message, /Content-Length/);
+  assert.ok(!(await listR2ObjectSizes()).includes(size), 'object left in R2');
+});
+
+test('a known-length upload of 30 MB with an API key is stored and downloads intact', async () => {
+  const key = await createApiKey('standard');
+  const bytes = randomBytes(30 * 1024 * 1024);
+
+  const file = await uploadOk(bytes, { headers: { 'X-API-Key': key } });
+
+  assert.equal(file.size, bytes.length);
+  const downloaded = Buffer.from(await (await request(file.url)).arrayBuffer());
+  assert.equal(sha256Hex(downloaded), sha256Hex(bytes));
+});
+
+test('a known-length upload over the size limit does not count against the rate limit', async () => {
+  const ip = newClientIp();
+
+  const rejected = await upload(Buffer.alloc(ANON_MAX_FILE_SIZE + 7), { ip });
+  assert.equal(rejected.status, 413);
+
+  for (let i = 0; i < 10; i++) {
+    await uploadOk(`small ${i}`, { ip });
+  }
+});
+
+test('the type is detected from the stored content for a file without an extension', async () => {
+  const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n'), randomBytes(2000)]);
+
+  const file = await uploadOk(pdf, { filename: 'noext' });
+
+  assert.equal(file.mime_type, 'application/pdf');
+});
+
+for (const [name, send] of [
+  ['with Content-Length 0', () => upload(Buffer.alloc(0), { filename: 'empty.txt' })],
+  ['without a body', () => upload(undefined, { filename: 'empty.txt' })],
+  ['chunked', () => uploadChunked(Buffer.alloc(0), { filename: 'empty.txt' })],
+]) {
+  test(`an empty upload ${name} is stored as a 0-byte file typed by its extension`, async () => {
+    const response = await send();
+    assert.equal(response.status, 200, await response.clone().text());
+    const file = await response.json();
+
+    assert.equal(file.size, 0);
+    assert.equal(file.mime_type, 'text/plain');
+    const downloaded = await request(file.url);
+    assert.equal(downloaded.status, 200);
+    assert.equal((await downloaded.arrayBuffer()).byteLength, 0);
+  });
+}

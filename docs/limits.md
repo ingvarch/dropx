@@ -19,7 +19,7 @@ Only uploads count. Downloads, info and delete requests are not limited.
 - Who is counted: an API key is counted by its SHA-256 hash. An anonymous client is counted by a keyed hash (HMAC) of its network, taken from `CF-Connecting-IP`: the IPv4 address, or the /64 prefix for IPv6 (an IPv4-mapped IPv6 address counts as its IPv4 address). An IPv6 client usually owns a whole /64 and can switch addresses inside it, so counting each address would give it fresh limits every time. Requests without that header share one anonymous counter.
 - Windows: each client has an hourly and a daily counter. A counter starts when the first upload arrives after the previous window ended, and resets one hour (or one day) later. The windows are not aligned to the clock.
 - Both counters are checked. A rejected request does not add to the counters.
-- The headers are validated before the check, and the body is read after it. An upload rejected with `400` does not use the counters. An upload that later fails with `413` still uses one upload from each counter.
+- The headers and the `Content-Length` size are checked before the rate limit. An upload rejected with `400` or with `413` from its `Content-Length` does not use the counters. An upload without `Content-Length` that turns out too large while the body is read (`413` or `411`) still uses one upload from each counter.
 
 When a limit is hit, the upload returns `429` with a `Retry-After` header and a JSON body. `Retry-After` is the number of whole seconds until the upload can succeed again (at least 1). `message` names the full window, `Hourly rate limit exceeded` or `Daily rate limit exceeded`. If both windows are full, `Retry-After` counts to the later of the two resets and `message` names that window:
 
@@ -31,13 +31,26 @@ An admin can clear the counters of one client: see [admin.md](admin.md#reset-a-r
 
 ## File size
 
-The size is checked after the whole body has been read. A file over the limit returns `413`:
+With a `Content-Length` header, the size is checked before the rate limit and before the body is read. A file over the tier limit returns `413`:
 
 ```json
 { "error": "File too large", "message": "Maximum file size is 25 MB", "max_size": 26214400 }
 ```
 
-Cloudflare also limits the request body size by plan. See [Cloudflare limits and pricing](deployment.md#cloudflare-limits-and-pricing).
+Within the limit, the body goes straight from the request to R2 without being held in the Worker's memory. The stored size is the one R2 reports.
+
+Without `Content-Length` (a chunked upload, for example `cat file | curl -T - ...`), the Worker reads the body into memory, up to 25 MB. It stops reading as soon as the limit is passed:
+
+- Over the tier limit when the tier limit is 25 MB or smaller: `413`, as above.
+- Over 25 MB with a tier that allows more: `411`, `Length required`, with a message to send `Content-Length`:
+
+```json
+{ "error": "Length required", "message": "Send a Content-Length header for files over 25 MB" }
+```
+
+`curl --upload-file ./file` sends `Content-Length` by itself, so only streamed input is affected.
+
+Cloudflare also limits the request body size by the zone plan: 100 MB on Free and Pro, 200 MB on Business, more on Enterprise. Larger requests are rejected by Cloudflare before they reach the Worker, so the 500 MB premium limit needs a plan that allows such a body. See [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [deployment.md](deployment.md#cloudflare-limits-and-pricing).
 
 ## Retention
 
