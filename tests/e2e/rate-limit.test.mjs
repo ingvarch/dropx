@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'bun:test';
 import { adminRequest, createApiKey, ipUserId, newClientIp, upload } from './helpers.mjs';
 
 const ANON_HOURLY_LIMIT = 10;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'bun:test';
 import { ADMIN_TOKEN, adminRequest, createApiKey, createApiKeyResponse, request, upload, uploadOk } from './helpers.mjs';
 
 test('admin routes need the admin token', async () => {

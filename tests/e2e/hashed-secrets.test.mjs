@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'bun:test';
 import { createApiKey, d1Raw, ipUserId, newClientIp, pathOf, sha256Hex, uploadOk } from './helpers.mjs';
 
 const IP_HASH_HEX_LENGTH = 32;

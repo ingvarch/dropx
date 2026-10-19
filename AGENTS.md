@@ -39,7 +39,7 @@ Write the failing test first, and confirm it fails for the right reason.
 
 - Rust unit tests are for pure functions. They must call project code: no assertions on constants, no copies of the logic.
 - `console_log!` and `worker::Headers` need the JS runtime and fail in `cargo test`. Extract a pure function and test that. Examples: `decide_limit` in `src/durable_objects/rate_limiter.rs`, `parse_check_response` in `src/services/rate_limiter.rs`, `remove_object_then_row` in `src/services/file_removal.rs` (run with `Waker::noop`).
-- HTTP behavior goes in `tests/e2e/*.test.mjs` (`bun test`, written with `node:test` and `node:assert`), using `tests/e2e/helpers.mjs`:
+- HTTP behavior goes in `tests/e2e/*.test.mjs` (`bun test`, written with `bun:test` and `node:assert`), using `tests/e2e/helpers.mjs`:
   - Every request gets a random `CF-Connecting-IP` (`newClientIp`), so tests do not share rate limit counters.
   - `setExpiresAt`, `d1Raw` and `listR2ObjectSizes` read and write D1 and R2 through the Local Explorer.
   - `runScheduledCleanup` triggers the cron job.
