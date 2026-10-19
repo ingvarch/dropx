@@ -8,6 +8,8 @@
   },
   "scripts": {
     "test:e2e": "bun tests/e2e/run.mjs",
+    "test:scripts": "bun test ./scripts",
+    "release": "bun scripts/release.mjs",
     "deploy": "wrangler build && wrangler d1 migrations apply dropx-db --remote < /dev/null && wrangler deploy"
   },
   "devDependencies": {

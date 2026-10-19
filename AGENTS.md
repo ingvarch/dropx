@@ -23,6 +23,7 @@ cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
 cargo check
 cargo test
+bun run test:scripts
 bun run test:e2e
 ```
 

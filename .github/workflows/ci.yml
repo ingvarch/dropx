@@ -51,4 +51,5 @@ jobs:
       # Version from packageManager in package.json.
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - run: bun run test:scripts
       - run: bun run test:e2e
