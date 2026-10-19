@@ -306,8 +306,8 @@
                         </div>
 
                         <div class="example-item">
-                            <div class="example-title">Files over 25 MB</div>
-                            <div class="example-desc">An upload from a pipe has no Content-Length, so it is limited to 25 MB. For a bigger file, which needs an API key, encrypt to a file first, then upload the file</div>
+                            <div class="example-title">Files over {{MAX_BUFFERED_UPLOAD_SIZE}} MB</div>
+                            <div class="example-desc">An upload from a pipe has no Content-Length, so it is limited to {{MAX_BUFFERED_UPLOAD_SIZE}} MB. For a bigger file, which needs an API key, encrypt to a file first, then upload the file</div>
                             <div class="code-block">
                                 <div class="code-block-header">
                                     <span class="code-block-label">COMMAND</span>
