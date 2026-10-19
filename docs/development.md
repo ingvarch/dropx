@@ -81,6 +81,8 @@ bun run test:e2e
 
 GitHub Actions runs the same checks on every pull request, on `main` and for release tags (`.github/workflows/ci.yml`, called from `release.yml` for tags).
 
+The Security workflow (`.github/workflows/security.yml`) runs on pull requests, on `main` and every Monday. It runs CodeQL for Rust, JavaScript and the workflow files, and cargo-deny for advisories, bans, licenses and sources. `deny.toml` holds the cargo-deny settings and the allowed licenses. Add a license there only after checking that it fits an MIT project. With cargo-deny installed, `cargo deny check` runs the same check locally. Every Monday Dependabot opens one grouped pull request per ecosystem (Cargo, bun, GitHub Actions) for minor and patch updates (`.github/dependabot.yml`). Major updates and security fixes come as separate pull requests. Actions are pinned to commit SHAs with the version in a comment; Dependabot keeps the pins current.
+
 The rules for code, tests and commits are in [AGENTS.md](../AGENTS.md).
 
 ## Project structure
@@ -132,8 +134,11 @@ dropx/
 ├── docs/                       # Documentation
 ├── .github/workflows/ci.yml    # Checks on pull requests and main
 ├── .github/workflows/release.yml  # GitHub Release for version tags
+├── .github/workflows/security.yml # CodeQL and cargo-deny
+├── .github/dependabot.yml      # Weekly grouped dependency updates
 ├── .github/release.yml         # Release notes categories
 ├── Cargo.toml
+├── deny.toml                   # cargo-deny settings and allowed licenses
 ├── package.json                # wrangler, the test, deploy and release scripts
 ├── bun.lock                    # Locked dev dependency versions
 ├── wrangler.toml               # Bindings, cron trigger, build command

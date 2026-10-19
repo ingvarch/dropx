@@ -27,6 +27,7 @@ bun run test:scripts
 bun run test:e2e
 ```
 
+- `cargo deny check` runs the cargo-deny check from CI when cargo-deny is installed. It is not a required check.
 - `bun install` installs wrangler. Run it with `bunx wrangler`, not a global install. wrangler itself runs on Node.js 22 or newer.
 - `bun run test:e2e` starts its own `wrangler dev` on fresh local state. It does not touch `.wrangler/state` or `.dev.vars`.
 
