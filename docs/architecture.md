@@ -27,7 +27,7 @@ A request rejected in steps 2 to 4, or in step 6 by the size check, stores no fi
 
 ## Download flow
 
-`GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path and differ only in `Content-Disposition`:
+`GET /:id`, `GET /get/:id` and `GET /inline/:id` share one code path. They differ in `Content-Disposition`, and `/inline/:id` changes `Content-Type` for HTML, SVG and XML ([api.md](api.md#download)). The decision is in `content_headers` in `src/utils/content_disposition.rs`. The shared code path:
 
 1. Read the metadata row from D1. No row, a row with `expires_at` in the past, or a row whose `download_count` has reached `max_downloads`, returns `404`.
 2. Open the object in R2. No object returns `404`.
@@ -118,6 +118,7 @@ What the code does:
 - API keys and delete tokens are random UUID v4 values (122 random bits). D1 stores only their SHA-256 (`api_keys.key`, `files.delete_token`). The create and upload responses show the plain value once, and it cannot be recovered. A delete or an upload with a key hashes the presented value and compares it in SQL.
 - IPv4 addresses and IPv6 /64 prefixes (`2001:db8:1:2::/64`) are hashed with HMAC-SHA-256 keyed with the `IP_HASH_KEY` secret (first 16 bytes, hex, 32 characters) before they are used as the rate limit key or stored in `uploaded_by`. Without the key the hash cannot be reversed by trying all IPv4 addresses. A missing `IP_HASH_KEY` makes anonymous uploads fail with `500`. Changing the key gives every client a new identity, so rate limit counters start over.
 - Admin routes need `X-Admin-Token` equal to the `ADMIN_TOKEN` secret. Both values are hashed with SHA-256 and the digests are compared in constant time, so response time does not reveal how much of a guess is right or how long the secret is.
+- HTML, SVG and XML files are never served as pages: `/:id` sends them as attachments, `/inline/:id` sends them as `text/plain`, and every download sends `X-Content-Type-Options: nosniff`.
 - Deleting needs the delete token that only the uploader receives.
 - Anyone who knows a file ID can download it. There is no per-file access control.
 - Files are stored as uploaded. The service does not encrypt them. The landing page shows how to encrypt with GPG or OpenSSL before upload.

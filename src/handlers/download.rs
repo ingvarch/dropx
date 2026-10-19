@@ -1,9 +1,10 @@
 use worker::{Request, Response, RouteContext, Result, Headers, console_log};
 use crate::services::{StorageService, DatabaseService};
 use crate::utils::response::{get_file_id_param, not_found, file_not_found};
-use crate::utils::content_disposition::{get_content_disposition, DispositionType};
+use crate::utils::content_disposition::{content_headers, DispositionType};
 use crate::utils::constants::{
-    HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION,
+    HEADER_CONTENT_TYPE, HEADER_CONTENT_DISPOSITION, HEADER_CONTENT_TYPE_OPTIONS,
+    CONTENT_TYPE_OPTIONS_NOSNIFF,
     HEADER_CONTENT_LENGTH, HEADER_DOWNLOAD_COUNT, HEADER_EXPIRES_AT,
 };
 
@@ -43,15 +44,14 @@ async fn serve_file(ctx: &RouteContext<()>, disposition: DispositionType) -> Res
     }
 
     let headers = Headers::new();
-    headers.set(HEADER_CONTENT_TYPE, &file_metadata.mime_type)?;
-    headers.set(
-        HEADER_CONTENT_DISPOSITION,
-        &get_content_disposition(
-            &file_metadata.original_filename,
-            disposition,
-            &file_metadata.mime_type,
-        ),
-    )?;
+    let content = content_headers(
+        &file_metadata.original_filename,
+        disposition,
+        &file_metadata.mime_type,
+    );
+    headers.set(HEADER_CONTENT_TYPE, &content.content_type)?;
+    headers.set(HEADER_CONTENT_DISPOSITION, &content.content_disposition)?;
+    headers.set(HEADER_CONTENT_TYPE_OPTIONS, CONTENT_TYPE_OPTIONS_NOSNIFF)?;
     headers.set(HEADER_CONTENT_LENGTH, &file_metadata.size.to_string())?;
     headers.set(HEADER_DOWNLOAD_COUNT, &file_metadata.download_count.to_string())?;
     headers.set(HEADER_EXPIRES_AT, &file_metadata.expires_at.to_string())?;
